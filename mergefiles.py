@@ -1,76 +1,99 @@
 import os
+import re
+import sys
 import time
+from datetime import datetime
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from datetime import datetime
 
 # Configuration
-OUTPUT_FILE = "bot_unified.rs"
-PROJECT_ROOT = "."  # Répertoire racine du projet
+# Entry point: lib.rs or main.rs
+ENTRY_FILES = ['src/lib.rs', 'src/main.rs']
+OUTPUT_FILE = 'output.rs'
+WATCH_PATH = 'src'
 
-def collect_rs_files(root_dir):
-    rs_files = []
-    for root, dirs, files in os.walk(root_dir):
-        for file in files:
-            if file.endswith(".rs") and file != OUTPUT_FILE:
-                full_path = os.path.join(root, file)
-                rs_files.append(full_path)
-
-    # Prioriser main.rs s'il existe
-    rs_files.sort(key=lambda x: (os.path.basename(x) != "main.rs", x))
-    return rs_files
-
-def unify_files(rs_files, output_path):
-    with open(output_path, "w", encoding="utf-8") as outfile:
-        # Ajouter l'en-tête avec date et heure
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        outfile.write(f"// === Fichier unifié automatiquement ===\n")
-        outfile.write(f"// Date de merge : {now}\n")
-        outfile.write(f"// Nombre de fichiers .rs : {len(rs_files)}\n\n")
-
-        for file_path in rs_files:
-            outfile.write(f"\n// --- Début du fichier: {file_path} ---\n")
-            with open(file_path, "r", encoding="utf-8") as infile:
-                content = infile.read()
-                outfile.write(content)
-                outfile.write(f"\n// --- Fin du fichier: {file_path} ---\n")
-    print(f"[✓] Unification terminée : {output_path} ({len(rs_files)} fichiers)")
+mod_pattern = re.compile(r'^(?P<indent>\s*)mod\s+(?P<name>\w+)\s*;\s*$', re.MULTILINE)
 
 
+def find_entry():
+    for f in ENTRY_FILES:
+        if os.path.isfile(f):
+            return f
+    print(f"❌ Erreur : aucun fichier d'entrée trouvé parmi {ENTRY_FILES}")
+    sys.exit(1)
 
-# def unify_files(rs_files, output_path):
-#     with open(output_path, "w", encoding="utf-8") as outfile:
-#         for file_path in rs_files:
-#             outfile.write(f"\n// --- File: {file_path} ---\n")
-#             with open(file_path, "r", encoding="utf-8") as infile:
-#                 content = infile.read()
-#                 outfile.write(content)
-#                 outfile.write("\n")
-#     print(f"[✓] Unification terminée : {output_path} ({len(rs_files)} fichiers)")
 
-class RsFileChangeHandler(FileSystemEventHandler):
-    def on_modified(self, event):
-        if event.src_path.endswith(".rs") and not event.src_path.endswith(OUTPUT_FILE):
-            print(f"[!] Changement détecté : {event.src_path}")
-            rs_files = collect_rs_files(PROJECT_ROOT)
-            unify_files(rs_files, os.path.join(PROJECT_ROOT, OUTPUT_FILE))
+def inline_modules(file_path, processed=None):
+    """
+    Recursively inline modules: replace `mod name;` with `mod name { <content> }`.
+    """
+    if processed is None:
+        processed = set()
+    content = ''
+    dir_path = os.path.dirname(file_path)
+    with open(file_path, 'r', encoding='utf-8') as f:
+        text = f.read()
 
-    def on_created(self, event):
-        self.on_modified(event)
+    def replace_mod(match):
+        indent = match.group('indent')
+        name = match.group('name')
+        if name in processed:
+            return ''  # avoid duplication
+        processed.add(name)
+        # locate module file
+        mod_rs = os.path.join(dir_path, f"{name}.rs")
+        mod_dir_rs = os.path.join(dir_path, name, 'mod.rs')
+        if os.path.isfile(mod_rs):
+            path = mod_rs
+        elif os.path.isfile(mod_dir_rs):
+            path = mod_dir_rs
+        else:
+            print(f"⚠️  Module {name} non trouvé. Skip.")
+            return match.group(0)
+        # read and inline
+        inner = inline_modules(path, processed)
+        # indent inner content
+        indented = '\n'.join(indent + '    ' + line for line in inner.splitlines())
+        return f"{indent}mod {name} {{\n{indented}\n{indent}}}"
 
-    def on_deleted(self, event):
-        self.on_modified(event)
+    # replace all mod declarations
+    result = mod_pattern.sub(replace_mod, text)
+    return result
 
-def watch_and_unify():
-    rs_files = collect_rs_files(PROJECT_ROOT)
-    unify_files(rs_files, os.path.join(PROJECT_ROOT, OUTPUT_FILE))
 
-    event_handler = RsFileChangeHandler()
+def generate():
+    entry = find_entry()
+    print(f"🔄 Génération du fichier fusionné depuis {entry}...")
+    merged = inline_modules(entry)
+    now = datetime.now().strftime("%H:%M:%S le %d-%m-%Y")
+    with open(OUTPUT_FILE, 'w', encoding='utf-8') as out:
+        out.write(f"// Généré à {now}\n")
+        out.write(merged)
+    print(f"✅  Fichier écrit : {OUTPUT_FILE}")
+
+
+class ChangeHandler(FileSystemEventHandler):
+    def __init__(self, callback):
+        super().__init__()
+        self.callback = callback
+
+    def on_any_event(self, event):
+        if event.is_directory:
+            return
+        if not event.src_path.endswith('.rs'):
+            return
+        if os.path.basename(event.src_path) == OUTPUT_FILE:
+            return
+        print(f"⚙️  Changements détectés dans {event.src_path}, régénération...")
+        self.callback()
+
+
+def watch():
+    event_handler = ChangeHandler(generate)
     observer = Observer()
-    observer.schedule(event_handler, path=PROJECT_ROOT, recursive=True)
+    observer.schedule(event_handler, WATCH_PATH, recursive=True)
     observer.start()
-    print("[👀] Surveillance des fichiers .rs lancée. Appuyez sur Ctrl+C pour arrêter.")
-
+    print(f"👀 Surveillance de '{WATCH_PATH}' pour les changements. Ctrl+C pour stopper.")
     try:
         while True:
             time.sleep(1)
@@ -78,5 +101,7 @@ def watch_and_unify():
         observer.stop()
     observer.join()
 
-if __name__ == "__main__":
-    watch_and_unify()
+
+if __name__ == '__main__':
+    generate()
+    watch()

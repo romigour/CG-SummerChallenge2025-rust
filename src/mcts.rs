@@ -2,6 +2,7 @@ use crate::game::GameState;
 use crate::utils::Timer;
 
 /// Paramètres de MCTS
+#[derive(Clone, Debug)]
 pub struct MctsConfig {
     pub exploration_constant: f32,
 }
