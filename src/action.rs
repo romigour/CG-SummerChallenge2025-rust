@@ -4,6 +4,7 @@ pub enum TypeAction {
     Shoot,
     HunkerDown,
 }
+#[derive(Debug)]
 pub struct Action {
    id: u32,
    mx: u32,

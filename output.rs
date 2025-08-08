@@ -1,4 +1,4 @@
-// Généré à 16:27:44 le 08-08-2025
+// Généré à 19:11:19 le 08-08-2025
 mod action {
     #[derive(Clone, Debug)]
     pub enum TypeAction {
@@ -6,6 +6,7 @@ mod action {
         Shoot,
         HunkerDown,
     }
+    #[derive(Debug)]
     pub struct Action {
        id: u32,
        mx: u32,
@@ -65,11 +66,10 @@ mod state {
         pub width: u32,
         pub height: u32,
         pub agent_data_count: u32,
-        pub my_idx_arr: Vec<u32>,
-        pub enemy_idx_arr: Vec<u32>,
+        pub my_idx_arr: Vec<usize>,
+        pub enemy_idx_arr: Vec<usize>,
         pub grid: Grid,
-        pub my_agents: Vec<Agent>,
-        pub ennemy_agents: Vec<Agent>,
+        pub agents: [Agent; 10],
     }
     
     
@@ -85,8 +85,7 @@ mod state {
                 my_idx_arr: Vec::new(),
                 enemy_idx_arr: Vec::new(),
                 grid: Grid::new(0, 0),
-                my_agents: Vec::new(),
-                ennemy_agents: Vec::new(),
+                agents: [Agent::default(); 10],
             }
         }
     
@@ -118,16 +117,19 @@ mod state {
                     optimal_range,
                     soaking_power,
                     splash_bombs,
+                    cooldown: 0,
+                    wetness: 0,
                     team: if player == my_id { Team::Me } else { Team::Enemy },
+                    is_dead: false,
                 };
     
+                let agent_idx = (agent_id - 1) as usize;
                 if agent.team == Team::Me {
-                    state.my_idx_arr.push(agent_id - 1);
-                    state.my_agents.push(agent);
+                    state.my_idx_arr.push(agent_idx);
                 } else {
-                    state.enemy_idx_arr.push(agent_id - 1);
-                    state.ennemy_agents.push(agent);
+                    state.enemy_idx_arr.push(agent_idx);
                 }
+                state.agents[agent_idx] = agent;
             }
             let mut input_line = String::new();
             io::stdin().read_line(&mut input_line).unwrap();
@@ -154,6 +156,11 @@ mod state {
             let mut input_line = String::new();
             io::stdin().read_line(&mut input_line).unwrap();
             let agent_count = parse_input!(input_line, u32); // Total number of agents still in the game
+            for i in 0..state.agent_data_count as usize {
+                state.agents[i].is_dead = true;
+            }
+    
+    
             for i in 0..agent_count as usize {
                 let mut input_line = String::new();
                 io::stdin().read_line(&mut input_line).unwrap();
@@ -164,6 +171,13 @@ mod state {
                 let cooldown = parse_input!(inputs[3], u32); // Number of turns before this agent can shoot
                 let splash_bombs = parse_input!(inputs[4], u32);
                 let wetness = parse_input!(inputs[5], u32); // Damage (0-100) this agent has taken
+    
+                state.agents[i].is_dead = false;
+                state.agents[i].x = x;
+                state.agents[i].y = y;
+                state.agents[i].cooldown = cooldown;
+                state.agents[i].splash_bombs = splash_bombs;
+                state.agents[i].wetness = wetness;
             }
             let mut input_line = String::new();
             io::stdin().read_line(&mut input_line).unwrap();
@@ -226,7 +240,7 @@ mod state {
     }
 }
 mod agent {
-    #[derive(Clone, Debug)]
+    #[derive(Clone, Debug, Default, Copy)]
     pub struct Agent {
         pub id: u32,
         pub x: u32,
@@ -235,11 +249,15 @@ mod agent {
         pub optimal_range: u32,
         pub soaking_power: u32,
         pub splash_bombs: u32,
+        pub cooldown: u32,
+        pub wetness: u32,
         pub team: Team,
+        pub is_dead: bool,
     }
     
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Clone, Debug, PartialEq, Eq, Default, Copy)]
     pub enum Team {
+        #[default]
         Me,
         Enemy,
     }
@@ -247,6 +265,7 @@ mod agent {
 mod utils {
     use std::time::{Instant, Duration};
     use std::eprintln;
+    use std::fmt::Display;
     
     pub struct Timer {
         start: Instant,
@@ -320,8 +339,9 @@ mod ia {
             let mut actions = Vec::new();
     
             // Exemple : pour chaque unité, aller à droite
-            for my_agent in &state.my_agents {
-                actions.push(Action::hunker_down(my_agent.id, my_agent.x + 1, my_agent.y));
+            for idx in &state.my_idx_arr {
+                let agent = &state.agents[*idx];
+                actions.push(Action::hunker_down(agent.id, agent.x + 1, agent.y));
             }
     
             actions
@@ -355,10 +375,9 @@ fn main() {
         // IA
         let best_actions =  ia.decide_actions(&state);
 
-        Debug::debug("IA Decision",
+        Debug::debug("IA",
                      &[
-                         ("turn", state.turn.to_string()),
-                         ("best_actions", format!("{:?}", best_actions.iter().map(|a| a.display()).collect::<Vec<_>>().join(", "))),
+                         ("best_actions", format!("{:#?}", best_actions)),
                      ],
         );
 

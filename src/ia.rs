@@ -11,8 +11,9 @@ impl IA {
         let mut actions = Vec::new();
 
         // Exemple : pour chaque unité, aller à droite
-        for my_agent in &state.my_agents {
-            actions.push(Action::hunker_down(my_agent.id, my_agent.x + 1, my_agent.y));
+        for idx in &state.my_idx_arr {
+            let agent = &state.agents[*idx];
+            actions.push(Action::hunker_down(agent.id, agent.x + 1, agent.y));
         }
 
         actions

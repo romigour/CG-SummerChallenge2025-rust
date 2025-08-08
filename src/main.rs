@@ -32,10 +32,9 @@ fn main() {
         // IA
         let best_actions =  ia.decide_actions(&state);
 
-        Debug::debug("IA Decision",
+        Debug::debug("IA",
                      &[
-                         ("turn", state.turn.to_string()),
-                         ("best_actions", format!("{:?}", best_actions.iter().map(|a| a.display()).collect::<Vec<_>>().join(", "))),
+                         ("best_actions", format!("{:#?}", best_actions)),
                      ],
         );
 

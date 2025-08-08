@@ -1,5 +1,6 @@
 use std::time::{Instant, Duration};
 use std::eprintln;
+use std::fmt::Display;
 
 pub struct Timer {
     start: Instant,

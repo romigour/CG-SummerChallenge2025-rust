@@ -20,11 +20,10 @@ pub struct State {
     pub width: u32,
     pub height: u32,
     pub agent_data_count: u32,
-    pub my_idx_arr: Vec<u32>,
-    pub enemy_idx_arr: Vec<u32>,
+    pub my_idx_arr: Vec<usize>,
+    pub enemy_idx_arr: Vec<usize>,
     pub grid: Grid,
-    pub my_agents: Vec<Agent>,
-    pub ennemy_agents: Vec<Agent>,
+    pub agents: [Agent; 10],
 }
 
 
@@ -40,8 +39,7 @@ impl State {
             my_idx_arr: Vec::new(),
             enemy_idx_arr: Vec::new(),
             grid: Grid::new(0, 0),
-            my_agents: Vec::new(),
-            ennemy_agents: Vec::new(),
+            agents: [Agent::default(); 10],
         }
     }
 
@@ -73,16 +71,19 @@ impl State {
                 optimal_range,
                 soaking_power,
                 splash_bombs,
+                cooldown: 0,
+                wetness: 0,
                 team: if player == my_id { Team::Me } else { Team::Enemy },
+                is_dead: false,
             };
 
+            let agent_idx = (agent_id - 1) as usize;
             if agent.team == Team::Me {
-                state.my_idx_arr.push(agent_id - 1);
-                state.my_agents.push(agent);
+                state.my_idx_arr.push(agent_idx);
             } else {
-                state.enemy_idx_arr.push(agent_id - 1);
-                state.ennemy_agents.push(agent);
+                state.enemy_idx_arr.push(agent_idx);
             }
+            state.agents[agent_idx] = agent;
         }
         let mut input_line = String::new();
         io::stdin().read_line(&mut input_line).unwrap();
@@ -109,6 +110,11 @@ impl State {
         let mut input_line = String::new();
         io::stdin().read_line(&mut input_line).unwrap();
         let agent_count = parse_input!(input_line, u32); // Total number of agents still in the game
+        for i in 0..state.agent_data_count as usize {
+            state.agents[i].is_dead = true;
+        }
+
+
         for i in 0..agent_count as usize {
             let mut input_line = String::new();
             io::stdin().read_line(&mut input_line).unwrap();
@@ -119,6 +125,13 @@ impl State {
             let cooldown = parse_input!(inputs[3], u32); // Number of turns before this agent can shoot
             let splash_bombs = parse_input!(inputs[4], u32);
             let wetness = parse_input!(inputs[5], u32); // Damage (0-100) this agent has taken
+
+            state.agents[i].is_dead = false;
+            state.agents[i].x = x;
+            state.agents[i].y = y;
+            state.agents[i].cooldown = cooldown;
+            state.agents[i].splash_bombs = splash_bombs;
+            state.agents[i].wetness = wetness;
         }
         let mut input_line = String::new();
         io::stdin().read_line(&mut input_line).unwrap();
