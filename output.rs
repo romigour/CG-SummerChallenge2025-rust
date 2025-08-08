@@ -1,4 +1,4 @@
-// Généré à 16:07:55 le 08-08-2025
+// Généré à 16:27:44 le 08-08-2025
 mod action {
     #[derive(Clone, Debug)]
     pub enum TypeAction {
@@ -6,7 +6,7 @@ mod action {
         Shoot,
         HunkerDown,
     }
-    pub(crate) struct Action {
+    pub struct Action {
        id: u32,
        mx: u32,
        my: u32,
@@ -17,7 +17,7 @@ mod action {
     }
     
     impl Action {
-        fn new(id: u32, mx: u32, my: u32, type_action: TypeAction, x: u32, y: u32, ennemy_id: u32) -> Self {
+        pub fn new(id: u32, mx: u32, my: u32, type_action: TypeAction, x: u32, y: u32, ennemy_id: u32) -> Self {
             Action { id, mx, my, type_action, x, y, ennemy_id }
         }
     

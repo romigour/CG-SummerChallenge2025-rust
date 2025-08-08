@@ -4,7 +4,7 @@ pub enum TypeAction {
     Shoot,
     HunkerDown,
 }
-pub(crate) struct Action {
+pub struct Action {
    id: u32,
    mx: u32,
    my: u32,
@@ -15,7 +15,7 @@ pub(crate) struct Action {
 }
 
 impl Action {
-    fn new(id: u32, mx: u32, my: u32, type_action: TypeAction, x: u32, y: u32, ennemy_id: u32) -> Self {
+    pub fn new(id: u32, mx: u32, my: u32, type_action: TypeAction, x: u32, y: u32, ennemy_id: u32) -> Self {
         Action { id, mx, my, type_action, x, y, ennemy_id }
     }
 
