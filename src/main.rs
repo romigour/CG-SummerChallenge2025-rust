@@ -35,7 +35,7 @@ fn main() {
         Debug::debug("IA Decision",
                      &[
                          ("turn", state.turn.to_string()),
-                         ("best_actions", format!("{:?}", best_actions.iter().map(|a| a.to_string()).collect::<Vec<_>>().join(", "))),
+                         ("best_actions", format!("{:?}", best_actions.iter().map(|a| a.display()).collect::<Vec<_>>().join(", "))),
                      ],
         );
 

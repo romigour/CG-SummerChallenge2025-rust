@@ -1,23 +1,43 @@
-// Généré à 15:43:50 le 08-08-2025
+// Généré à 16:07:55 le 08-08-2025
 mod action {
-    use std::fmt;
-    
     #[derive(Clone, Debug)]
-    pub enum Action {
-        Move(u32, u32),
-        Throw(u32, u32),
-        Shoot(u32), // target id
+    pub enum TypeAction {
+        Throw,
+        Shoot,
         HunkerDown,
-        Message(String),
     }
-    impl fmt::Display for Action {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            match self {
-                Action::Move(x, y) => write!(f, "MOVE {} {}", x, y),
-                Action::Throw(x, y) => write!(f, "THROW {} {}", x, y),
-                Action::Shoot(id) => write!(f, "SHOOT {}", id),
-                Action::HunkerDown => write!(f, "HUNKER_DOWN"),
-                Action::Message(text) => write!(f, "MESSAGE {}", text),
+    pub(crate) struct Action {
+       id: u32,
+       mx: u32,
+       my: u32,
+       type_action: TypeAction,
+       x: u32,
+       y: u32,
+       ennemy_id: u32,
+    }
+    
+    impl Action {
+        fn new(id: u32, mx: u32, my: u32, type_action: TypeAction, x: u32, y: u32, ennemy_id: u32) -> Self {
+            Action { id, mx, my, type_action, x, y, ennemy_id }
+        }
+    
+        pub fn shoot(id: u32, mx: u32, my: u32, ennemy_id: u32) -> Self {
+            Self::new(id, mx, my, TypeAction::Shoot, 0, 0, ennemy_id)
+        }
+    
+        pub fn throw(id: u32, mx: u32, my: u32, x: u32, y: u32) -> Self {
+            Self::new(id, mx, my, TypeAction::Throw, x, y, 0)
+        }
+    
+        pub fn hunker_down(id: u32, mx: u32, my: u32) -> Self {
+            Self::new(id, mx, my, TypeAction::HunkerDown, 0, 0, 0)
+        }
+    
+        pub fn display(&self) -> String {
+            match self.type_action {
+                TypeAction::Throw => format!("{};MOVE {} {};THROW {} {}", self.id, self.mx, self.my, self.x, self.y),
+                TypeAction::Shoot => format!("{};MOVE {} {};SHOOT {}", self.id, self.mx, self.my, self.ennemy_id),
+                TypeAction::HunkerDown => format!("{};MOVE {} {};HUNKER_DOWN", self.id, self.mx, self.my),
             }
         }
     }
@@ -200,7 +220,7 @@ mod state {
     
         pub fn play(&self, actions: Vec<Action>) {
             for action in actions {
-                println!("{}", action);
+                println!("{}", action.display());
             }
         }
     }
@@ -300,8 +320,8 @@ mod ia {
             let mut actions = Vec::new();
     
             // Exemple : pour chaque unité, aller à droite
-            for unit in &state.my_agents {
-                actions.push(Action::HunkerDown);
+            for my_agent in &state.my_agents {
+                actions.push(Action::hunker_down(my_agent.id, my_agent.x + 1, my_agent.y));
             }
     
             actions
@@ -338,7 +358,7 @@ fn main() {
         Debug::debug("IA Decision",
                      &[
                          ("turn", state.turn.to_string()),
-                         ("best_actions", format!("{:?}", best_actions.iter().map(|a| a.to_string()).collect::<Vec<_>>().join(", "))),
+                         ("best_actions", format!("{:?}", best_actions.iter().map(|a| a.display()).collect::<Vec<_>>().join(", "))),
                      ],
         );
 

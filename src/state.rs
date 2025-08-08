@@ -175,7 +175,7 @@ impl State {
 
     pub fn play(&self, actions: Vec<Action>) {
         for action in actions {
-            println!("{}", action);
+            println!("{}", action.display());
         }
     }
 }
