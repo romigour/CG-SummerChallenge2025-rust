@@ -1,4 +1,5 @@
 use std::time::{Instant, Duration};
+use std::eprintln;
 
 pub struct Timer {
     start: Instant,
@@ -11,5 +12,18 @@ impl Timer {
     }
     pub fn is_time_up(&self) -> bool {
         Instant::now().duration_since(self.start) >= self.limit
+    }
+}
+
+pub struct Debug {
+}
+
+impl Debug {
+    pub fn debug(label: &str, params: &[(&str, String)]) {
+        eprintln!("=== DEBUG: {} ===", label);
+        for (name, value) in params {
+            eprintln!(" {}: {}", name, value);
+        }
+        eprintln!("======================");
     }
 }

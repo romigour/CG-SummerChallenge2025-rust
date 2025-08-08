@@ -46,26 +46,20 @@ cg-local / cg-exhancer / Violentmonkey
 
 # Psyleague
 
-# cg-analyze-match
-Outil qui permet de voir les matchs timeout ou perdu dans son historique
-à lancer de préférence sur un shell linux qui gère les unicode
-Exemple: java "-Dfile.encoding=UTF-8" -jar cg-analyze-match.jar 706344417256bc809fa636f89e195d6f4d28b989 -w -l -s cannot
-
 # cgsubmit
 Outil qui permet de voir les matchs timeout ou perdu dans son historique
 https://github.com/FrequentlyMissedDeadlines/cgsubmit
 
 Exemple: python -m cgsubmit -t 706344417256bc809fa636f89e195d6f4d28b989
 
-# message intéressant entre MC et HC
-MC is monte Carlo (full random) sims and take the best
 
-HC is Hill climbing. Instead of just doing random sims, you always keep the
-best in memory somewhere and you try a tiny mutation. If the mutation improves
-the scoring you keep the new sim as the best to be mutated in the next iteration.
-Else you throw it
 
-SA is simulated annealing, almost like Hill climbing but instead of always having
-current==best you can sometimes lower the current score using some formula and use
-another state as current. It enables to not remain too often stuck in local optimas like HC may do
-(you can add diversity because the formula enables to sometimes go down, it's working mathematically)
+
+Chatgpt
+
+
+Je travail sur un bot pour un challenge codingame de combat de bot, je souhaite développer mon bot en Rust et faire un MCTS. 
+Le jeu est un combat en 1v1 où chaque joueur gère entre 3 et 5 agents en simultané.
+La déroulement est comme tout les autres challenges de combat de bot codingame, c'est du tour par tour, chaque joueur envoie ses actions et le referee gère le combat.
+Je souhaite que tu me proposes une structure de code pour ce projet, en incluant des tests pour simuler un tour de jeu à partir d'un fichier `input.txt` qui contiendrait les données d'un tour de jeu. 
+L'objectif est de pouvoir exécuter le code localement pour comprendre le fonctionnement du jeu.

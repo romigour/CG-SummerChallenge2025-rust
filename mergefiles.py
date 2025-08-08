@@ -63,9 +63,10 @@ def inline_modules(file_path, processed=None):
 
 def generate():
     entry = find_entry()
-    print(f"🔄 Génération du fichier fusionné depuis {entry}...")
-    merged = inline_modules(entry)
+    nowHour = datetime.now().strftime("%H:%M:%S")
     now = datetime.now().strftime("%H:%M:%S le %d-%m-%Y")
+    print(f"🔄 Génération du fichier fusionné depuis {entry}... à {nowHour}")
+    merged = inline_modules(entry)
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as out:
         out.write(f"// Généré à {now}\n")
         out.write(merged)
@@ -84,7 +85,7 @@ class ChangeHandler(FileSystemEventHandler):
             return
         if os.path.basename(event.src_path) == OUTPUT_FILE:
             return
-        print(f"⚙️  Changements détectés dans {event.src_path}, régénération...")
+        print(f"⚙️ Changements détectés dans {event.src_path}, régénération...")
         self.callback()
 
 

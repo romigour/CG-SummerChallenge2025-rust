@@ -1,19 +1,17 @@
-use crate::game::GameState;
-use crate::mcts::{Mcts, MctsConfig};
-use crate::utils::Timer;
-
-pub struct MctsAgent {
-    config: MctsConfig,
+#[derive(Clone, Debug)]
+pub struct Agent {
+    pub id: u32,
+    pub x: u32,
+    pub y: u32,
+    pub shoot_cooldown: u32,
+    pub optimal_range: u32,
+    pub soaking_power: u32,
+    pub splash_bombs: u32,
+    pub team: Team,
 }
 
-impl MctsAgent {
-    pub fn new() -> Self {
-        Self { config: MctsConfig { exploration_constant: 1.41 } }
-    }
-
-    pub fn search<S: GameState>(&self, state: &S, iterations: u32, start: std::time::Instant) -> S::Action {
-        let timer = Timer::new(start, std::time::Duration::from_millis(45));
-        let mut mcts = Mcts::new(state.clone(), self.config.clone());
-        mcts.search(iterations, &timer)
-    }
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Team {
+    Me,
+    Enemy,
 }
