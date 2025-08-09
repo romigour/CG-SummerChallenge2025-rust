@@ -3,6 +3,7 @@ use crate::agent::{Agent, Team};
 use crate::grid::Grid;
 
 use std::io;
+use crate::utils::{Debug, Math};
 
 macro_rules! parse_input {
     ($x:expr, $t:ident) => ($x.trim().parse::<$t>().unwrap())
@@ -142,10 +143,9 @@ impl State {
     }
 
     pub fn legal_actions_for_agent(&self, agent: &Agent) -> Vec<Action> {
-        // Simple action set: stay, move in 4 directions within map, attack nearest enemy if within range 1
-        // let mut actions = Vec::new();
-        // actions.push(Action::Wait);
-        let dirs: Vec<(i32, i32)> = vec![(0,0), (0,1),(0,-1),(1,0),(-1,0)];
+        let mut actions = Vec::new();
+
+        let dirs: Vec<(i32, i32)> = vec![(0,0),(0,1),(0,-1),(1,0),(-1,0)];
 
         let mut moves_possibles: Vec<(i32, i32)> = Vec::new();
 
@@ -155,29 +155,38 @@ impl State {
             if nx >= 0 && nx < self.width && ny >= 0 && ny < self.height {
                 moves_possibles.push((nx, ny));
 
-                // BOMBS
+                // THROW
                 if agent.splash_bombs > 0 {
-
+                    for enemy_idx in &self.enemy_idx_arr {
+                        let enemy = &self.agents[*enemy_idx];
+                        let dist = Math::manhattan(agent.x, agent.y, enemy.x, enemy.y);
+                        if dist <= 4 {
+                            actions.push(Action::throw(agent.id, nx, ny, enemy.x, enemy.y));
+                        }
+                    }
                 }
 
                 // SHOOT
-                // if agent.shoot_cooldown <= 0 {
-                //     for enemy_idx in &self.enemy_idx_arr {
-                //         let enemy = &self.agents[*enemy_idx];
-                //         let dist = ((enemy.x - nx).pow(2) + (enemy.y - ny).pow(2)).sqrt();
-                //         if dist <= agent.optimal_range as f32 {
-                //             // actions.push(Action::Shoot(agent.id, nx, ny, enemy.id));
-                //         }
-                //     }
-                // }
+                if agent.cooldown <= 0 {
+                    for enemy_idx in &self.enemy_idx_arr {
+                        let enemy = &self.agents[*enemy_idx];
+                        if enemy.is_dead {
+                            continue;
+                        }
+
+                        let dist = Math::manhattan(agent.x, agent.y, enemy.x, enemy.y);
+                        if dist > agent.optimal_range * 2 {
+                            continue
+                        }
+                        actions.push(Action::shoot(agent.id, nx, ny, enemy.id));
+                    }
+                }
+
+                actions.push(Action::hunker_down(agent.id, nx, ny));
             }
         }
 
-        for (nx, ny) in moves_possibles {
-            // actions.push(Action::Move(agent.id, nx, ny));
-        }
-
-        Vec::new()
+        actions
     }
 
     pub fn legal_joint_actions(&self) -> Vec<Vec<Action>> {
