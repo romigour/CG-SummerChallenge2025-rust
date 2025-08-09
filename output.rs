@@ -1,29 +1,29 @@
-// Généré à 13:12:57 le 09-08-2025
+// Généré à 22:18:25 le 09-08-2025
 mod action {
-    #[derive(Clone, Debug)]
+    #[derive(Clone, Debug, Copy, PartialEq, Eq)]
     pub enum TypeAction {
         Throw,
         Shoot,
         HunkerDown,
     }
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct Action {
-       id: i32,
-       mx: i32,
-       my: i32,
-       type_action: TypeAction,
-       x: i32,
-       y: i32,
-       ennemy_id: i32,
+        pub id: i32,
+        pub mx: i32,
+        pub my: i32,
+        pub type_action: TypeAction,
+        pub x: i32,
+        pub y: i32,
+        pub enemy_id: i32,
     }
     
     impl Action {
-        pub fn new(id: i32, mx: i32, my: i32, type_action: TypeAction, x: i32, y: i32, ennemy_id: i32) -> Self {
-            Action { id, mx, my, type_action, x, y, ennemy_id }
+        pub fn new(id: i32, mx: i32, my: i32, type_action: TypeAction, x: i32, y: i32, enemy_id: i32) -> Self {
+            Action { id, mx, my, type_action, x, y, enemy_id }
         }
     
-        pub fn shoot(id: i32, mx: i32, my: i32, ennemy_id: i32) -> Self {
-            Self::new(id, mx, my, TypeAction::Shoot, 0, 0, ennemy_id)
+        pub fn shoot(id: i32, mx: i32, my: i32, enemy_id: i32) -> Self {
+            Self::new(id, mx, my, TypeAction::Shoot, 0, 0, enemy_id)
         }
     
         pub fn throw(id: i32, mx: i32, my: i32, x: i32, y: i32) -> Self {
@@ -37,14 +37,14 @@ mod action {
         pub fn display(&self) -> String {
             match self.type_action {
                 TypeAction::Throw => format!("{};MOVE {} {};THROW {} {}", self.id, self.mx, self.my, self.x, self.y),
-                TypeAction::Shoot => format!("{};MOVE {} {};SHOOT {}", self.id, self.mx, self.my, self.ennemy_id),
+                TypeAction::Shoot => format!("{};MOVE {} {};SHOOT {}", self.id, self.mx, self.my, self.enemy_id),
                 TypeAction::HunkerDown => format!("{};MOVE {} {};HUNKER_DOWN", self.id, self.mx, self.my),
             }
         }
     }
 }
 mod state {
-    use crate::action::Action;
+    use crate::action::{Action, TypeAction};
     use crate::agent::{Agent, Team};
     use crate::grid::Grid;
     
@@ -133,7 +133,7 @@ mod state {
             let width = parse_input!(inputs[0], i32);
             state.width = width;
             let height = parse_input!(inputs[1], i32);
-            state.height = width;
+            state.height = height;
             state.grid = Grid::new(width as usize, height as usize);
             for i in 0..height as usize {
                 let mut input_line = String::new();
@@ -168,12 +168,13 @@ mod state {
                 let splash_bombs = parse_input!(inputs[4], i32);
                 let wetness = parse_input!(inputs[5], i32); // Damage (0-100) this agent has taken
     
-                state.agents[i].is_dead = false;
-                state.agents[i].x = x;
-                state.agents[i].y = y;
-                state.agents[i].cooldown = cooldown;
-                state.agents[i].splash_bombs = splash_bombs;
-                state.agents[i].wetness = wetness;
+                let agent_idx = (agent_id - 1) as usize;
+                state.agents[agent_idx].is_dead = false;
+                state.agents[agent_idx].x = x;
+                state.agents[agent_idx].y = y;
+                state.agents[agent_idx].cooldown = cooldown;
+                state.agents[agent_idx].splash_bombs = splash_bombs;
+                state.agents[agent_idx].wetness = wetness;
             }
             let mut input_line = String::new();
             io::stdin().read_line(&mut input_line).unwrap();
@@ -191,21 +192,22 @@ mod state {
         pub fn legal_actions_for_agent(&self, agent: &Agent) -> Vec<Action> {
             let mut actions = Vec::new();
     
-            let dirs: Vec<(i32, i32)> = vec![(0,0),(0,1),(0,-1),(1,0),(-1,0)];
-    
-            let mut moves_possibles: Vec<(i32, i32)> = Vec::new();
+            let dirs: Vec<(i32, i32)> = vec![(1,0),(0,1),(0,-1),(-1,0),(0,0)];
     
             for (dx,dy) in dirs {
                 let nx = agent.x + dx;
                 let ny = agent.y + dy;
                 if nx >= 0 && nx < self.width && ny >= 0 && ny < self.height {
-                    moves_possibles.push((nx, ny));
+    
+                    if self.grid.get(nx as usize, ny as usize) > 0 {
+                        continue
+                    }
     
                     // THROW
                     if agent.splash_bombs > 0 {
                         for enemy_idx in &self.enemy_idx_arr {
                             let enemy = &self.agents[*enemy_idx];
-                            let dist = Math::manhattan(agent.x, agent.y, enemy.x, enemy.y);
+                            let dist = Math::manhattan(nx, ny, enemy.x, enemy.y);
                             if dist <= 4 {
                                 actions.push(Action::throw(agent.id, nx, ny, enemy.x, enemy.y));
                             }
@@ -220,7 +222,7 @@ mod state {
                                 continue;
                             }
     
-                            let dist = Math::manhattan(agent.x, agent.y, enemy.x, enemy.y);
+                            let dist = Math::manhattan(nx, ny, enemy.x, enemy.y);
                             if dist > agent.optimal_range * 2 {
                                 continue
                             }
@@ -249,6 +251,92 @@ mod state {
     
         pub fn apply_joint_actions(&mut self, my_actions: &[Action], enemy_actions: Option<&[Action]>) {
             self.turn += 1;
+        }
+    
+        pub fn apply_actions(&mut self, action: Action) {
+            self.turn += 1;
+    
+            let agent_cooldown;
+            let agent_soaking_power;
+    
+            let agent = &mut self.agents[action.id as usize - 1];
+            agent.x = action.mx;
+            agent.y = action.my;
+            agent_cooldown = agent.cooldown;
+            agent_soaking_power = agent.soaking_power;
+    
+            if action.type_action == TypeAction::HunkerDown {
+    
+            } else if action.type_action == TypeAction::Throw {
+                agent.splash_bombs -= 1;
+                for a in self.agents.iter_mut() {
+    
+                    let dx = (a.x - action.x).abs();
+                    let dy = (a.y - action.y).abs();
+                    if dx <= 1 && dy <= 1 {
+                        a.wetness += 30;
+                    }
+                }
+    
+            } else if action.type_action == TypeAction::Shoot {
+                agent.cooldown = agent_cooldown;
+                let enemy_agent = &mut self.agents[action.enemy_id as usize - 1];
+                enemy_agent.wetness += agent_soaking_power;
+            }
+    
+        }
+    
+        pub fn calcul_zone_couverture(&self, agent_id: i32, nx: i32, ny: i32) -> i32 {
+            let mut my_zones = 0;
+            let mut enemy_zones = 0;
+            for y in 0..self.height {
+                for x in 0..self.width {
+                    if self.grid.get(x as usize, y as usize) > 0 {
+                        continue;
+                    }
+    
+                    let mut dmy = 9999;
+                    let mut denemy = 9999;
+    
+                    for my_idx in &self.my_idx_arr {
+                        let my_agent = &self.agents[*my_idx];
+                        if my_agent.is_dead {
+                            continue;
+                        }
+    
+                        let mut distance = Math::manhattan(my_agent.x, my_agent.y, x, y);
+                        if my_agent.wetness >= 50 {
+                            distance *= 2;
+                        }
+    
+                        if distance < dmy {
+                            dmy = distance;
+                        }
+                    }
+    
+                    for enemy_idx in &self.enemy_idx_arr {
+                        let enemy = &self.agents[*enemy_idx];
+                        if enemy.is_dead {
+                            continue;
+                        }
+                        let mut distance = Math::manhattan(enemy.x, enemy.y, x, y);
+                        if enemy.wetness >= 50 {
+                            distance *= 2;
+                        }
+    
+                        if distance < denemy {
+                            denemy = distance;
+                        }
+                    }
+    
+                    if dmy < denemy {
+                        my_zones += 1;
+                    } else if (denemy < dmy) {
+                        enemy_zones += 1;
+                    }
+                }
+            }
+            my_zones - enemy_zones
         }
     
         pub fn play(&self, actions: Vec<Action>) {
@@ -292,8 +380,16 @@ mod utils {
     }
     
     impl Timer {
-        pub fn new(start: Instant, limit: Duration) -> Self {
-            Self { start, limit }
+        pub fn new(limit: Duration) -> Self {
+            Self { start: Instant::now(), limit }
+        }
+        pub fn start(&mut self) {
+            self.start = Instant::now();
+        }
+    
+        pub fn time(&self) -> f64 {
+            let duration = Instant::now().duration_since(self.start);
+            duration.as_micros() as f64 / 1000.0
         }
         pub fn is_time_up(&self) -> bool {
             Instant::now().duration_since(self.start) >= self.limit
@@ -304,8 +400,13 @@ mod utils {
     }
     
     impl Debug {
+    
+        pub fn debug_simple(value: String) {
+            eprintln!("{:?}", value)
+        }
+    
         pub fn debug(label: &str, params: &[(&str, String)]) {
-            eprintln!("=== DEBUG: {} ===", label);
+            eprintln!("=== {} ===", label);
             for (name, value) in params {
                 eprintln!(" {}: {}", name, value);
             }
@@ -313,7 +414,7 @@ mod utils {
         }
     
         pub fn debug_vec<T: std::fmt::Debug>(label: &str, values: &[T]) {
-            eprintln!("=== DEBUG: {} ===", label);
+            eprintln!("=== {} ===", label);
             for value in values.iter() {
                 eprintln!("{:?}", value);
             }
@@ -363,8 +464,9 @@ mod grid {
 }
 mod ia {
     use crate::action::Action;
+    use crate::scorer::Scorer;
     use crate::state::State;
-    use crate::utils::Debug;
+    use crate::utils::{Debug, Timer};
     
     pub struct IA;
     
@@ -372,30 +474,111 @@ mod ia {
         pub fn new() -> Self {
             IA
         }
-        pub fn decide_actions(&self, state: &State) -> Vec<Action> {
+        pub fn decide_actions(&self, state: &State, timer: &Timer) -> Vec<Action> {
             let mut actions = Vec::new();
     
-            // Exemple : pour chaque unité, aller à droite
             for idx in &state.my_idx_arr {
                 let agent = &state.agents[*idx];
+                if agent.is_dead {
+                    continue;
+                }
                 let actionsAgent = state.legal_actions_for_agent(agent);
-                Debug::debug_vec(format!("Action agent n°{:?}", agent.id).as_str(), &actionsAgent);
+                let mut best_action: Option<Action> = None;
+                let mut best_score = i32::MIN;
+                Debug::debug_vec(format!("Agent n°{:?}", agent.id).as_str(), &actionsAgent);
+                for action in actionsAgent {
+                    let mut current_state = state.clone();
+                    current_state.apply_actions(action);
     
-                actions.push(Action::hunker_down(agent.id, agent.x + 1, agent.y));
+                    // Debug::debug("Current State",
+                    //              &[
+                    //                  ("action", action.display()),
+                    //                  ("current_state", format!("{:?}", current_state)),
+                    //              ],
+                    // );
+                    // Debug::debug_simple(format!("Time1: {:?}", timer.time()));
+    
+                    let score = Scorer::score(current_state);
+                    // Debug::debug_simple(format!("Time1: {:?}", timer.time()));
+                    if score > best_score {
+                        best_score = score;
+                        best_action = Option::from(action);
+                    }
+                }
+    
+                //Debug::debug_vec(format!("Action agent n°{:?}", agent.id).as_str(), &actionsAgent);
+                if best_action.is_none() {
+                    actions.push(Action::hunker_down(agent.id, agent.x, agent.y));
+                } else {
+                    Debug::debug_simple(format!("Score agent n° {:?}: {:?} -> {:?}", agent.id, best_score, best_action.unwrap()));
+                    actions.push(best_action.unwrap());
+                }
+    
             }
     
             actions
         }
     }
 }
+mod scorer {
+    use crate::state::State;
+    use crate::agent::{Team};
+    use crate::utils::Debug;
+    
+    pub struct Scorer;
+    
+    impl Scorer {
+        pub fn new() -> Self {
+            Scorer
+        }
+        pub fn score(state: State) -> i32 {
+            let mut score = 0;
+            let mut my_wetness_score = 0;
+            let mut enemy_wetness_score = 0;
+            let mut nb_enemy_50wetness = 0;
+    
+            //Debug::debug_simple(format!("{:?}", state));
+    
+            score += state.calcul_zone_couverture(0, 0, 0) * 1000;
+            //Debug::debug_simple(format!("zone {:?}", state.calcul_zone_couverture(0, 0, 0) * 100));
+            for agent in &state.agents {
+                if agent.team == Team::Me {
+                    my_wetness_score += agent.wetness;
+    
+                    // for enemy in &state.agents {
+                    //     if enemy.player != state.my_id {
+                    //         let distance = ((agent.x - enemy.x).pow(2) + (agent.y - enemy.y).pow(2)) as f64;
+                    //         score += (1000.0 / (1.0 + distance.sqrt())) as i32; // Closer enemies give more score
+                    //     }
+                    // }
+                } else {
+                    enemy_wetness_score += agent.wetness;
+                    if agent.wetness >= 50 {
+                        nb_enemy_50wetness += 1
+                    }
+                }
+            }
+    
+            score -= my_wetness_score;
+            score += enemy_wetness_score * 10;
+            score += nb_enemy_50wetness * 100;
+    
+            score
+    
+        }
+    }
+}
+use std::fmt::format;
+use std::time::{Duration, Instant};
 use crate::state::State;
 use crate::ia::IA;
-use crate::utils::Debug;
+use crate::utils::{Debug, Timer};
 
 fn main() {
     let mut state = State::new();
 
     let ia = IA::new();
+    let mut timer = Timer::new(Duration::from_millis(50));
 
     // 1. Lecture des inputs initiaux
     State::init_input(&mut state);
@@ -405,17 +588,20 @@ fn main() {
         // Lecture des inputs du tour
         State::update_input(&mut state);
 
-        Debug::debug("State",
-                     &[
-                         ("turn", state.turn.to_string()),
-                         ("state", format!("{:?}", state)),
-                     ],
-        );
+        timer.start();
+
+        // Debug::debug("State",
+        //              &[
+        //                  ("turn", state.turn.to_string()),
+        //                  ("state", format!("{:?}", state)),
+        //              ],
+        // );
 
         // IA
-        let best_actions =  ia.decide_actions(&state);
+        let best_actions =  ia.decide_actions(&state, &timer);
 
         Debug::debug_vec("Best Actions", &best_actions);
+        Debug::debug_simple(format!("Time {:?}ms", timer.time()));
 
         // Output
         state.play(best_actions);

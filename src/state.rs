@@ -1,4 +1,4 @@
-use crate::action::Action;
+use crate::action::{Action, TypeAction};
 use crate::agent::{Agent, Team};
 use crate::grid::Grid;
 
@@ -87,7 +87,7 @@ impl State {
         let width = parse_input!(inputs[0], i32);
         state.width = width;
         let height = parse_input!(inputs[1], i32);
-        state.height = width;
+        state.height = height;
         state.grid = Grid::new(width as usize, height as usize);
         for i in 0..height as usize {
             let mut input_line = String::new();
@@ -122,12 +122,13 @@ impl State {
             let splash_bombs = parse_input!(inputs[4], i32);
             let wetness = parse_input!(inputs[5], i32); // Damage (0-100) this agent has taken
 
-            state.agents[i].is_dead = false;
-            state.agents[i].x = x;
-            state.agents[i].y = y;
-            state.agents[i].cooldown = cooldown;
-            state.agents[i].splash_bombs = splash_bombs;
-            state.agents[i].wetness = wetness;
+            let agent_idx = (agent_id - 1) as usize;
+            state.agents[agent_idx].is_dead = false;
+            state.agents[agent_idx].x = x;
+            state.agents[agent_idx].y = y;
+            state.agents[agent_idx].cooldown = cooldown;
+            state.agents[agent_idx].splash_bombs = splash_bombs;
+            state.agents[agent_idx].wetness = wetness;
         }
         let mut input_line = String::new();
         io::stdin().read_line(&mut input_line).unwrap();
@@ -145,21 +146,22 @@ impl State {
     pub fn legal_actions_for_agent(&self, agent: &Agent) -> Vec<Action> {
         let mut actions = Vec::new();
 
-        let dirs: Vec<(i32, i32)> = vec![(0,0),(0,1),(0,-1),(1,0),(-1,0)];
-
-        let mut moves_possibles: Vec<(i32, i32)> = Vec::new();
+        let dirs: Vec<(i32, i32)> = vec![(1,0),(0,1),(0,-1),(-1,0),(0,0)];
 
         for (dx,dy) in dirs {
             let nx = agent.x + dx;
             let ny = agent.y + dy;
             if nx >= 0 && nx < self.width && ny >= 0 && ny < self.height {
-                moves_possibles.push((nx, ny));
+
+                if self.grid.get(nx as usize, ny as usize) > 0 {
+                    continue
+                }
 
                 // THROW
                 if agent.splash_bombs > 0 {
                     for enemy_idx in &self.enemy_idx_arr {
                         let enemy = &self.agents[*enemy_idx];
-                        let dist = Math::manhattan(agent.x, agent.y, enemy.x, enemy.y);
+                        let dist = Math::manhattan(nx, ny, enemy.x, enemy.y);
                         if dist <= 4 {
                             actions.push(Action::throw(agent.id, nx, ny, enemy.x, enemy.y));
                         }
@@ -174,7 +176,7 @@ impl State {
                             continue;
                         }
 
-                        let dist = Math::manhattan(agent.x, agent.y, enemy.x, enemy.y);
+                        let dist = Math::manhattan(nx, ny, enemy.x, enemy.y);
                         if dist > agent.optimal_range * 2 {
                             continue
                         }
@@ -203,6 +205,92 @@ impl State {
 
     pub fn apply_joint_actions(&mut self, my_actions: &[Action], enemy_actions: Option<&[Action]>) {
         self.turn += 1;
+    }
+
+    pub fn apply_actions(&mut self, action: Action) {
+        self.turn += 1;
+
+        let agent_cooldown;
+        let agent_soaking_power;
+
+        let agent = &mut self.agents[action.id as usize - 1];
+        agent.x = action.mx;
+        agent.y = action.my;
+        agent_cooldown = agent.cooldown;
+        agent_soaking_power = agent.soaking_power;
+
+        if action.type_action == TypeAction::HunkerDown {
+
+        } else if action.type_action == TypeAction::Throw {
+            agent.splash_bombs -= 1;
+            for a in self.agents.iter_mut() {
+
+                let dx = (a.x - action.x).abs();
+                let dy = (a.y - action.y).abs();
+                if dx <= 1 && dy <= 1 {
+                    a.wetness += 30;
+                }
+            }
+
+        } else if action.type_action == TypeAction::Shoot {
+            agent.cooldown = agent_cooldown;
+            let enemy_agent = &mut self.agents[action.enemy_id as usize - 1];
+            enemy_agent.wetness += agent_soaking_power;
+        }
+
+    }
+
+    pub fn calcul_zone_couverture(&self, agent_id: i32, nx: i32, ny: i32) -> i32 {
+        let mut my_zones = 0;
+        let mut enemy_zones = 0;
+        for y in 0..self.height {
+            for x in 0..self.width {
+                if self.grid.get(x as usize, y as usize) > 0 {
+                    continue;
+                }
+
+                let mut dmy = 9999;
+                let mut denemy = 9999;
+
+                for my_idx in &self.my_idx_arr {
+                    let my_agent = &self.agents[*my_idx];
+                    if my_agent.is_dead {
+                        continue;
+                    }
+
+                    let mut distance = Math::manhattan(my_agent.x, my_agent.y, x, y);
+                    if my_agent.wetness >= 50 {
+                        distance *= 2;
+                    }
+
+                    if distance < dmy {
+                        dmy = distance;
+                    }
+                }
+
+                for enemy_idx in &self.enemy_idx_arr {
+                    let enemy = &self.agents[*enemy_idx];
+                    if enemy.is_dead {
+                        continue;
+                    }
+                    let mut distance = Math::manhattan(enemy.x, enemy.y, x, y);
+                    if enemy.wetness >= 50 {
+                        distance *= 2;
+                    }
+
+                    if distance < denemy {
+                        denemy = distance;
+                    }
+                }
+
+                if dmy < denemy {
+                    my_zones += 1;
+                } else if (denemy < dmy) {
+                    enemy_zones += 1;
+                }
+            }
+        }
+        my_zones - enemy_zones
     }
 
     pub fn play(&self, actions: Vec<Action>) {

@@ -8,8 +8,16 @@ pub struct Timer {
 }
 
 impl Timer {
-    pub fn new(start: Instant, limit: Duration) -> Self {
-        Self { start, limit }
+    pub fn new(limit: Duration) -> Self {
+        Self { start: Instant::now(), limit }
+    }
+    pub fn start(&mut self) {
+        self.start = Instant::now();
+    }
+
+    pub fn time(&self) -> f64 {
+        let duration = Instant::now().duration_since(self.start);
+        duration.as_micros() as f64 / 1000.0
     }
     pub fn is_time_up(&self) -> bool {
         Instant::now().duration_since(self.start) >= self.limit
@@ -20,8 +28,13 @@ pub struct Debug {
 }
 
 impl Debug {
+
+    pub fn debug_simple(value: String) {
+        eprintln!("{:?}", value)
+    }
+
     pub fn debug(label: &str, params: &[(&str, String)]) {
-        eprintln!("=== DEBUG: {} ===", label);
+        eprintln!("=== {} ===", label);
         for (name, value) in params {
             eprintln!(" {}: {}", name, value);
         }
@@ -29,7 +42,7 @@ impl Debug {
     }
 
     pub fn debug_vec<T: std::fmt::Debug>(label: &str, values: &[T]) {
-        eprintln!("=== DEBUG: {} ===", label);
+        eprintln!("=== {} ===", label);
         for value in values.iter() {
             eprintln!("{:?}", value);
         }
