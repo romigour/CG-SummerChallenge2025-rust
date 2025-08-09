@@ -1,6 +1,5 @@
+use crate::agent::Team;
 use crate::state::State;
-use crate::agent::{Team};
-use crate::utils::Debug;
 
 pub struct Scorer;
 
@@ -9,18 +8,29 @@ impl Scorer {
         Scorer
     }
     pub fn score(state: State) -> i32 {
-        let mut score = 0;
         let mut my_wetness_score = 0;
         let mut enemy_wetness_score = 0;
+        let mut nb_my_50wetness = 0;
+        let mut nb_my_100wetness = 0;
         let mut nb_enemy_50wetness = 0;
+        let mut nb_enemy_100wetness = 0;
 
-        //Debug::debug_simple(format!("{:?}", state));
+        let zones = state.calcul_zone_couverture(0, 0, 0);
 
-        score += state.calcul_zone_couverture(0, 0, 0) * 1000;
         //Debug::debug_simple(format!("zone {:?}", state.calcul_zone_couverture(0, 0, 0) * 100));
         for agent in &state.agents {
+            if agent.is_dead {
+                continue
+            }
+
             if agent.team == Team::Me {
                 my_wetness_score += agent.wetness;
+                if agent.wetness >= 50 {
+                    nb_my_50wetness += 1
+                }
+                if agent.wetness >= 100 {
+                    nb_my_100wetness += 1;
+                }
 
                 // for enemy in &state.agents {
                 //     if enemy.player != state.my_id {
@@ -33,12 +43,25 @@ impl Scorer {
                 if agent.wetness >= 50 {
                     nb_enemy_50wetness += 1
                 }
+                if agent.wetness >= 100 {
+                    nb_enemy_100wetness += 1;
+                }
             }
         }
 
-        score -= my_wetness_score;
-        score += enemy_wetness_score * 10;
+
+
+        let mut score = 0;
+        score += zones * 10;
+
+        score -= (my_wetness_score / 100) * 100;
+        score -= nb_my_50wetness * 10000;
+        score -= nb_my_100wetness * 100000;
+
+        score += (enemy_wetness_score * 10) / 100;
         score += nb_enemy_50wetness * 100;
+        score += nb_enemy_100wetness * 1000;
+
 
         score
 

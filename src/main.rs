@@ -5,18 +5,18 @@ mod utils;
 mod grid;
 mod ia;
 mod scorer;
+mod ia2;
 
-use std::fmt::format;
-use std::time::{Duration, Instant};
+use crate::ia2::IA2;
 use crate::state::State;
-use crate::ia::IA;
 use crate::utils::{Debug, Timer};
+use std::time::Duration;
 
 fn main() {
     let mut state = State::new();
 
-    let ia = IA::new();
-    let mut timer = Timer::new(Duration::from_millis(50));
+    let ia = IA2::new();
+    let mut timer = Timer::new(Duration::from_millis(45));
 
     // 1. Lecture des inputs initiaux
     State::init_input(&mut state);
@@ -38,7 +38,7 @@ fn main() {
         // IA
         let best_actions =  ia.decide_actions(&state, &timer);
 
-        Debug::debug_vec("Best Actions", &best_actions);
+        //Debug::debug_vec("Best Actions", &best_actions);
         Debug::debug_simple(format!("Time {:?}ms", timer.time()));
 
         // Output

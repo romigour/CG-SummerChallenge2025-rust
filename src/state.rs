@@ -103,6 +103,7 @@ impl State {
     }
 
     pub fn update_input(state: &mut State) {
+        state.turn += 1;
         let mut input_line = String::new();
         io::stdin().read_line(&mut input_line).unwrap();
         let agent_count = parse_input!(input_line, i32); // Total number of agents still in the game
@@ -159,17 +160,19 @@ impl State {
 
                 // THROW
                 if agent.splash_bombs > 0 {
+                    let mut throw_actions: Vec<(i32, Action)> = Vec::new();
                     for enemy_idx in &self.enemy_idx_arr {
                         let enemy = &self.agents[*enemy_idx];
                         let dist = Math::manhattan(nx, ny, enemy.x, enemy.y);
                         if dist <= 4 {
-                            actions.push(Action::throw(agent.id, nx, ny, enemy.x, enemy.y));
+                            actions.push(Action::throw(agent.id, nx, ny, enemy.x, enemy.y, 100 - enemy.wetness));
                         }
                     }
                 }
 
                 // SHOOT
                 if agent.cooldown <= 0 {
+                    let mut shoot_actions: Vec<(i32, Action)> = Vec::new();
                     for enemy_idx in &self.enemy_idx_arr {
                         let enemy = &self.agents[*enemy_idx];
                         if enemy.is_dead {
@@ -180,7 +183,14 @@ impl State {
                         if dist > agent.optimal_range * 2 {
                             continue
                         }
-                        actions.push(Action::shoot(agent.id, nx, ny, enemy.id));
+
+                        let mut bonus = 0;
+                        if dist < agent.optimal_range {
+                            bonus = 10;
+                        }
+
+                        let score = dist + bonus;
+                        actions.push(Action::shoot(agent.id, nx, ny, enemy.id, score));
                     }
                 }
 
@@ -237,7 +247,6 @@ impl State {
             let enemy_agent = &mut self.agents[action.enemy_id as usize - 1];
             enemy_agent.wetness += agent_soaking_power;
         }
-
     }
 
     pub fn calcul_zone_couverture(&self, agent_id: i32, nx: i32, ny: i32) -> i32 {

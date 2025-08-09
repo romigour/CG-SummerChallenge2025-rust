@@ -1,4 +1,4 @@
-// Généré à 22:18:25 le 09-08-2025
+// Généré à 00:48:47 le 10-08-2025
 mod action {
     #[derive(Clone, Debug, Copy, PartialEq, Eq)]
     pub enum TypeAction {
@@ -15,23 +15,24 @@ mod action {
         pub x: i32,
         pub y: i32,
         pub enemy_id: i32,
+        pub score: i32,
     }
     
     impl Action {
-        pub fn new(id: i32, mx: i32, my: i32, type_action: TypeAction, x: i32, y: i32, enemy_id: i32) -> Self {
-            Action { id, mx, my, type_action, x, y, enemy_id }
+        pub fn new(id: i32, mx: i32, my: i32, type_action: TypeAction, x: i32, y: i32, enemy_id: i32, score: i32) -> Self {
+            Action { id, mx, my, type_action, x, y, enemy_id, score }
         }
     
-        pub fn shoot(id: i32, mx: i32, my: i32, enemy_id: i32) -> Self {
-            Self::new(id, mx, my, TypeAction::Shoot, 0, 0, enemy_id)
+        pub fn shoot(id: i32, mx: i32, my: i32, enemy_id: i32, score: i32) -> Self {
+            Self::new(id, mx, my, TypeAction::Shoot, 0, 0, enemy_id, score)
         }
     
-        pub fn throw(id: i32, mx: i32, my: i32, x: i32, y: i32) -> Self {
-            Self::new(id, mx, my, TypeAction::Throw, x, y, 0)
+        pub fn throw(id: i32, mx: i32, my: i32, x: i32, y: i32, score: i32) -> Self {
+            Self::new(id, mx, my, TypeAction::Throw, x, y, 0, score)
         }
     
         pub fn hunker_down(id: i32, mx: i32, my: i32) -> Self {
-            Self::new(id, mx, my, TypeAction::HunkerDown, 0, 0, 0)
+            Self::new(id, mx, my, TypeAction::HunkerDown, 0, 0, 0, 0)
         }
     
         pub fn display(&self) -> String {
@@ -149,6 +150,7 @@ mod state {
         }
     
         pub fn update_input(state: &mut State) {
+            state.turn += 1;
             let mut input_line = String::new();
             io::stdin().read_line(&mut input_line).unwrap();
             let agent_count = parse_input!(input_line, i32); // Total number of agents still in the game
@@ -205,17 +207,19 @@ mod state {
     
                     // THROW
                     if agent.splash_bombs > 0 {
+                        let mut throw_actions: Vec<(i32, Action)> = Vec::new();
                         for enemy_idx in &self.enemy_idx_arr {
                             let enemy = &self.agents[*enemy_idx];
                             let dist = Math::manhattan(nx, ny, enemy.x, enemy.y);
                             if dist <= 4 {
-                                actions.push(Action::throw(agent.id, nx, ny, enemy.x, enemy.y));
+                                actions.push(Action::throw(agent.id, nx, ny, enemy.x, enemy.y, 100 - enemy.wetness));
                             }
                         }
                     }
     
                     // SHOOT
                     if agent.cooldown <= 0 {
+                        let mut shoot_actions: Vec<(i32, Action)> = Vec::new();
                         for enemy_idx in &self.enemy_idx_arr {
                             let enemy = &self.agents[*enemy_idx];
                             if enemy.is_dead {
@@ -226,7 +230,14 @@ mod state {
                             if dist > agent.optimal_range * 2 {
                                 continue
                             }
-                            actions.push(Action::shoot(agent.id, nx, ny, enemy.id));
+    
+                            let mut bonus = 0;
+                            if dist < agent.optimal_range {
+                                bonus = 10;
+                            }
+    
+                            let score = dist + bonus;
+                            actions.push(Action::shoot(agent.id, nx, ny, enemy.id, score));
                         }
                     }
     
@@ -283,7 +294,6 @@ mod state {
                 let enemy_agent = &mut self.agents[action.enemy_id as usize - 1];
                 enemy_agent.wetness += agent_soaking_power;
             }
-    
         }
     
         pub fn calcul_zone_couverture(&self, agent_id: i32, nx: i32, ny: i32) -> i32 {
@@ -521,9 +531,8 @@ mod ia {
     }
 }
 mod scorer {
+    use crate::agent::Team;
     use crate::state::State;
-    use crate::agent::{Team};
-    use crate::utils::Debug;
     
     pub struct Scorer;
     
@@ -532,18 +541,29 @@ mod scorer {
             Scorer
         }
         pub fn score(state: State) -> i32 {
-            let mut score = 0;
             let mut my_wetness_score = 0;
             let mut enemy_wetness_score = 0;
+            let mut nb_my_50wetness = 0;
+            let mut nb_my_100wetness = 0;
             let mut nb_enemy_50wetness = 0;
+            let mut nb_enemy_100wetness = 0;
     
-            //Debug::debug_simple(format!("{:?}", state));
+            let zones = state.calcul_zone_couverture(0, 0, 0);
     
-            score += state.calcul_zone_couverture(0, 0, 0) * 1000;
             //Debug::debug_simple(format!("zone {:?}", state.calcul_zone_couverture(0, 0, 0) * 100));
             for agent in &state.agents {
+                if agent.is_dead {
+                    continue
+                }
+    
                 if agent.team == Team::Me {
                     my_wetness_score += agent.wetness;
+                    if agent.wetness >= 50 {
+                        nb_my_50wetness += 1
+                    }
+                    if agent.wetness >= 100 {
+                        nb_my_100wetness += 1;
+                    }
     
                     // for enemy in &state.agents {
                     //     if enemy.player != state.my_id {
@@ -556,29 +576,172 @@ mod scorer {
                     if agent.wetness >= 50 {
                         nb_enemy_50wetness += 1
                     }
+                    if agent.wetness >= 100 {
+                        nb_enemy_100wetness += 1;
+                    }
                 }
             }
     
-            score -= my_wetness_score;
-            score += enemy_wetness_score * 10;
+    
+    
+            let mut score = 0;
+            score += zones * 10;
+    
+            score -= (my_wetness_score / 100) * 100;
+            score -= nb_my_50wetness * 10000;
+            score -= nb_my_100wetness * 100000;
+    
+            score += (enemy_wetness_score * 10) / 100;
             score += nb_enemy_50wetness * 100;
+            score += nb_enemy_100wetness * 1000;
+    
     
             score
     
         }
     }
 }
-use std::fmt::format;
-use std::time::{Duration, Instant};
+mod ia2 {
+    use crate::action::{Action, TypeAction};
+    use crate::scorer::Scorer;
+    use crate::state::State;
+    use crate::utils::{Debug, Timer};
+    
+    pub struct IA2;
+    
+    impl IA2 {
+        pub fn new() -> Self {
+            IA2
+        }
+        pub fn decide_actions(&self, state: &State, timer: &Timer) -> Vec<Action> {
+            let mut actions = Vec::new();
+    
+            let mut actions_per_agent = Vec::new();
+            let mut nb_actions_per_agent = Vec::new();
+            for idx in &state.my_idx_arr {
+                let agent = &state.agents[*idx];
+                if agent.is_dead {
+                    continue;
+                }
+                let actions_for_agent = state.legal_actions_for_agent(agent);
+                let actions_for_agent_len = actions_for_agent.len();
+    
+                let actions_for_agent_filter = filter_actions(state.legal_actions_for_agent(agent));
+                let actions_for_agent_filter_len = actions_for_agent_filter.len();
+    
+                //Debug::debug_vec(format!("Agent n°{}", agent.id).as_str(), &actions_for_agent);
+    
+                actions_per_agent.push(actions_for_agent_filter);
+                nb_actions_per_agent.push(actions_for_agent_filter_len);
+            }
+            //Debug::debug_simple(format!("nb_actions_per_agent {:?}", nb_actions_per_agent));
+            let mut all_combinations = combine_actions(&actions_per_agent);
+            Debug::debug_simple(format!("Size combos {:?}", all_combinations.len()));
+            let mut best_score = i32::MIN;
+    
+            for combo in &mut all_combinations {
+                let mut current_state = state.clone();
+                for action in &mut *combo {
+                    current_state.apply_actions(*action);
+                }
+    
+                // Debug::debug("Current State",
+                //              &[
+                //                  ("actions", format!("{:?}", combo)),
+                //                  ("current_state", format!("{:?}", current_state)),
+                //              ],
+                // );
+                // Debug::debug_simple(format!("Time1: {:?}", timer.time()));
+    
+                let score = Scorer::score(current_state);
+    
+                // Debug::debug_simple(format!("Time1: {:?}", timer.time()));
+    
+                if score > best_score {
+                    best_score = score;
+                    actions = combo.clone();
+                }
+    
+                if timer.is_time_up() {
+                    Debug::debug_simple("IS TIME UP".parse().unwrap());
+                    break;
+                }
+            }
+            //Debug::debug_simple(format!("best_score: {:?}", best_score));
+            actions
+        }
+    
+    
+    }
+    
+    fn combine_actions(actions: &[Vec<Action>]) -> Vec<Vec<Action>> {
+        if actions.is_empty() {
+            return vec![vec![]];
+        }
+    
+        let first_agent_actions = &actions[0];
+        let rest_combinations = combine_actions(&actions[1..]);
+    
+        let mut result = Vec::new();
+    
+        for &action in first_agent_actions {
+            for combo in &rest_combinations {
+                let mut new_combo = vec![action];
+                new_combo.extend_from_slice(&combo);
+                // result.push(new_combo);
+                // Vérifie que toutes les coordonnées sont uniques
+                let mut coords = std::collections::HashSet::new();
+                let all_unique = new_combo.iter().all(|a| coords.insert((a.mx, a.my)));
+    
+                if all_unique {
+                    result.push(new_combo);
+                }
+            }
+        }
+    
+        result
+    }
+    
+    fn filter_actions(actions: Vec<Action>) -> Vec<Action> {
+        let mut hunker_down: Vec<Action> = Vec::new();
+        let mut shoot: Vec<Action> = Vec::new();
+        let mut throw: Vec<Action> = Vec::new();
+    
+        // 1. Séparer par type
+        for a in actions {
+            match a.type_action {
+                TypeAction::HunkerDown => hunker_down.push(a),
+                TypeAction::Shoot => shoot.push(a),
+                TypeAction::Throw => throw.push(a),
+            }
+        }
+    
+        // 2. Trier et limiter
+        shoot.sort_by(|a, b| b.score.cmp(&a.score));
+        shoot.truncate(5);
+    
+        throw.sort_by(|a, b| b.score.cmp(&a.score));
+        throw.truncate(5);
+    
+        // 3. Fusionner dans un seul Vec
+        let mut result = Vec::new();
+        result.extend(hunker_down);
+        result.extend(shoot);
+        result.extend(throw);
+    
+        result
+    }
+}
+use crate::ia2::IA2;
 use crate::state::State;
-use crate::ia::IA;
 use crate::utils::{Debug, Timer};
+use std::time::Duration;
 
 fn main() {
     let mut state = State::new();
 
-    let ia = IA::new();
-    let mut timer = Timer::new(Duration::from_millis(50));
+    let ia = IA2::new();
+    let mut timer = Timer::new(Duration::from_millis(45));
 
     // 1. Lecture des inputs initiaux
     State::init_input(&mut state);
@@ -600,7 +763,7 @@ fn main() {
         // IA
         let best_actions =  ia.decide_actions(&state, &timer);
 
-        Debug::debug_vec("Best Actions", &best_actions);
+        //Debug::debug_vec("Best Actions", &best_actions);
         Debug::debug_simple(format!("Time {:?}ms", timer.time()));
 
         // Output
