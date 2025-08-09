@@ -8,18 +8,13 @@ macro_rules! parse_input {
     ($x:expr, $t:ident) => ($x.trim().parse::<$t>().unwrap())
 }
 
-#[derive(Debug)]
-pub struct GameConstants {
-
-}
-
 #[derive(Clone, Debug)]
 pub struct State {
-    pub turn: u32,
-    pub my_id: u32,
-    pub width: u32,
-    pub height: u32,
-    pub agent_data_count: u32,
+    pub turn: i32,
+    pub my_id: i32,
+    pub width: i32,
+    pub height: i32,
+    pub agent_data_count: i32,
     pub my_idx_arr: Vec<usize>,
     pub enemy_idx_arr: Vec<usize>,
     pub grid: Grid,
@@ -46,22 +41,22 @@ impl State {
     pub fn init_input(state: &mut State) {
         let mut input_line = String::new();
         io::stdin().read_line(&mut input_line).unwrap();
-        let my_id = parse_input!(input_line, u32);
+        let my_id = parse_input!(input_line, i32);
         state.my_id = my_id;
         let mut input_line = String::new();
         io::stdin().read_line(&mut input_line).unwrap();
-        let agent_data_count = parse_input!(input_line, u32);
+        let agent_data_count = parse_input!(input_line, i32);
         state.agent_data_count = agent_data_count;
         for i in 0..agent_data_count as usize {
             let mut input_line = String::new();
             io::stdin().read_line(&mut input_line).unwrap();
             let inputs = input_line.split(" ").collect::<Vec<_>>();
-            let agent_id = parse_input!(inputs[0], u32);
-            let player = parse_input!(inputs[1], u32);
-            let shoot_cooldown = parse_input!(inputs[2], u32);
-            let optimal_range = parse_input!(inputs[3], u32);
-            let soaking_power = parse_input!(inputs[4], u32);
-            let splash_bombs = parse_input!(inputs[5], u32);
+            let agent_id = parse_input!(inputs[0], i32);
+            let player = parse_input!(inputs[1], i32);
+            let shoot_cooldown = parse_input!(inputs[2], i32);
+            let optimal_range = parse_input!(inputs[3], i32);
+            let soaking_power = parse_input!(inputs[4], i32);
+            let splash_bombs = parse_input!(inputs[5], i32);
 
             let agent = Agent {
                 id: agent_id,
@@ -88,9 +83,9 @@ impl State {
         let mut input_line = String::new();
         io::stdin().read_line(&mut input_line).unwrap();
         let inputs = input_line.split(" ").collect::<Vec<_>>();
-        let width = parse_input!(inputs[0], u32);
+        let width = parse_input!(inputs[0], i32);
         state.width = width;
-        let height = parse_input!(inputs[1], u32);
+        let height = parse_input!(inputs[1], i32);
         state.height = width;
         state.grid = Grid::new(width as usize, height as usize);
         for i in 0..height as usize {
@@ -100,7 +95,7 @@ impl State {
             for j in 0..width as usize {
                 let x = parse_input!(inputs[3*j], usize);
                 let y = parse_input!(inputs[3*j+1], usize);
-                let tile_type = parse_input!(inputs[3*j+2], u32);
+                let tile_type = parse_input!(inputs[3*j+2], i32);
                 state.grid.set(x, y, tile_type);
             }
         }
@@ -109,7 +104,7 @@ impl State {
     pub fn update_input(state: &mut State) {
         let mut input_line = String::new();
         io::stdin().read_line(&mut input_line).unwrap();
-        let agent_count = parse_input!(input_line, u32); // Total number of agents still in the game
+        let agent_count = parse_input!(input_line, i32); // Total number of agents still in the game
         for i in 0..state.agent_data_count as usize {
             state.agents[i].is_dead = true;
         }
@@ -119,12 +114,12 @@ impl State {
             let mut input_line = String::new();
             io::stdin().read_line(&mut input_line).unwrap();
             let inputs = input_line.split(" ").collect::<Vec<_>>();
-            let agent_id = parse_input!(inputs[0], u32);
-            let x = parse_input!(inputs[1], u32);
-            let y = parse_input!(inputs[2], u32);
-            let cooldown = parse_input!(inputs[3], u32); // Number of turns before this agent can shoot
-            let splash_bombs = parse_input!(inputs[4], u32);
-            let wetness = parse_input!(inputs[5], u32); // Damage (0-100) this agent has taken
+            let agent_id = parse_input!(inputs[0], i32);
+            let x = parse_input!(inputs[1], i32);
+            let y = parse_input!(inputs[2], i32);
+            let cooldown = parse_input!(inputs[3], i32); // Number of turns before this agent can shoot
+            let splash_bombs = parse_input!(inputs[4], i32);
+            let wetness = parse_input!(inputs[5], i32); // Damage (0-100) this agent has taken
 
             state.agents[i].is_dead = false;
             state.agents[i].x = x;
@@ -135,7 +130,7 @@ impl State {
         }
         let mut input_line = String::new();
         io::stdin().read_line(&mut input_line).unwrap();
-        let my_agent_count = parse_input!(input_line, u32);
+        let my_agent_count = parse_input!(input_line, i32);
     }
 
     pub fn is_terminal(&self) -> bool {
@@ -150,23 +145,38 @@ impl State {
         // Simple action set: stay, move in 4 directions within map, attack nearest enemy if within range 1
         // let mut actions = Vec::new();
         // actions.push(Action::Wait);
-        // let dirs = vec![(0,1),(0,-1),(1,0),(-1,0)];
-        // for (dx,dy) in dirs {
-        //     let nx = agent.x + dx;
-        //     let ny = agent.y + dy;
-        //     if nx >= 0 && nx < self.init.map_w && ny >= 0 && ny < self.init.map_h {
-        //         actions.push(Action::Move(nx, ny));
-        //     }
-        // }
-        // // attack if any enemy adjacent
-        // let enemies = if agent.team == Team::Me { &self.enemy_agents } else { &self.my_agents };
-        // for e in enemies {
-        //     let dist = (e.x - agent.x).abs() + (e.y - agent.y).abs();
-        //     if dist <= 1 && e.hp > 0 {
-        //         actions.push(Action::Attack(e.id));
-        //     }
-        // }
-        // actions
+        let dirs: Vec<(i32, i32)> = vec![(0,0), (0,1),(0,-1),(1,0),(-1,0)];
+
+        let mut moves_possibles: Vec<(i32, i32)> = Vec::new();
+
+        for (dx,dy) in dirs {
+            let nx = agent.x + dx;
+            let ny = agent.y + dy;
+            if nx >= 0 && nx < self.width && ny >= 0 && ny < self.height {
+                moves_possibles.push((nx, ny));
+
+                // BOMBS
+                if agent.splash_bombs > 0 {
+
+                }
+
+                // SHOOT
+                // if agent.shoot_cooldown <= 0 {
+                //     for enemy_idx in &self.enemy_idx_arr {
+                //         let enemy = &self.agents[*enemy_idx];
+                //         let dist = ((enemy.x - nx).pow(2) + (enemy.y - ny).pow(2)).sqrt();
+                //         if dist <= agent.optimal_range as f32 {
+                //             // actions.push(Action::Shoot(agent.id, nx, ny, enemy.id));
+                //         }
+                //     }
+                // }
+            }
+        }
+
+        for (nx, ny) in moves_possibles {
+            // actions.push(Action::Move(agent.id, nx, ny));
+        }
+
         Vec::new()
     }
 

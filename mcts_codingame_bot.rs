@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 // -----------------------------
 #[derive(Clone, Debug)]
 pub struct Agent {
-    pub id: u32,
+    pub id: i32,
     pub x: i32,
     pub y: i32,
     pub hp: i32,
@@ -32,7 +32,7 @@ pub enum Team {
 #[derive(Clone, Debug)]
 pub enum Action {
     Move(i32, i32),
-    Attack(u32), // target id
+    Attack(i32), // target id
     Wait,
 }
 
@@ -78,7 +78,7 @@ impl GameInit {
 pub struct GameTurn {
     pub my_agents: Vec<Agent>,
     pub enemy_agents: Vec<Agent>,
-    pub turn: u32,
+    pub turn: i32,
 }
 
 impl GameTurn {
@@ -88,7 +88,7 @@ impl GameTurn {
         // then: N (my agents), followed by N lines: id x y hp
         // then: M (enemy agents), followed by M lines: id x y hp
         let mut lines = stdin_lines();
-        let mut turn = 0u32;
+        let mut turn = 0i32;
         if let Some(ln) = lines.next() {
             turn = ln.trim().parse().unwrap_or(0);
         }
@@ -100,7 +100,7 @@ impl GameTurn {
                 if let Some(ln) = lines.next() {
                     let parts: Vec<_> = ln.split_whitespace().collect();
                     if parts.len() >= 4 {
-                        let id: u32 = parts[0].parse().unwrap_or(0);
+                        let id: i32 = parts[0].parse().unwrap_or(0);
                         let x: i32 = parts[1].parse().unwrap_or(0);
                         let y: i32 = parts[2].parse().unwrap_or(0);
                         let hp: i32 = parts[3].parse().unwrap_or(0);
@@ -115,7 +115,7 @@ impl GameTurn {
                 if let Some(ln) = lines.next() {
                     let parts: Vec<_> = ln.split_whitespace().collect();
                     if parts.len() >= 4 {
-                        let id: u32 = parts[0].parse().unwrap_or(0);
+                        let id: i32 = parts[0].parse().unwrap_or(0);
                         let x: i32 = parts[1].parse().unwrap_or(0);
                         let y: i32 = parts[2].parse().unwrap_or(0);
                         let hp: i32 = parts[3].parse().unwrap_or(0);
@@ -133,7 +133,7 @@ pub struct GameState {
     pub init: GameInit,
     pub my_agents: Vec<Agent>,
     pub enemy_agents: Vec<Agent>,
-    pub turn: u32,
+    pub turn: i32,
 }
 
 impl GameState {

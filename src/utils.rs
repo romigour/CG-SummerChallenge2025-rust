@@ -25,6 +25,23 @@ impl Debug {
         for (name, value) in params {
             eprintln!(" {}: {}", name, value);
         }
-        eprintln!("======================");
+        eprintln!();
+    }
+
+    pub fn debug_vec<T: std::fmt::Debug>(label: &str, values: &[T]) {
+        eprintln!("=== DEBUG: {} ===", label);
+        for value in values.iter() {
+            eprintln!("{:?}", value);
+        }
+        eprintln!();
+    }
+}
+
+pub struct Math {
+}
+
+impl Math {
+    pub fn manhattan(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
+        (x1 - x2).abs() + (y1 - y2).abs()
     }
 }

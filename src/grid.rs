@@ -2,7 +2,7 @@
 pub struct Grid {
     width: usize,
     height: usize,
-    data: Vec<u32>,
+    data: Vec<i32>,
 }
 
 impl Grid {
@@ -18,11 +18,11 @@ impl Grid {
         y * self.width + x
     }
 
-    pub fn get(&self, x: usize, y: usize) -> u32 {
+    pub fn get(&self, x: usize, y: usize) -> i32 {
         self.data[self.index(x, y)]
     }
 
-    pub fn set(&mut self, x: usize, y: usize, value: u32) {
+    pub fn set(&mut self, x: usize, y: usize, value: i32) {
         let idx = self.index(x, y);
         self.data[idx] = value;
     }

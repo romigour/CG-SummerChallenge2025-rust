@@ -6,29 +6,29 @@ pub enum TypeAction {
 }
 #[derive(Debug)]
 pub struct Action {
-   id: u32,
-   mx: u32,
-   my: u32,
+   id: i32,
+   mx: i32,
+   my: i32,
    type_action: TypeAction,
-   x: u32,
-   y: u32,
-   ennemy_id: u32,
+   x: i32,
+   y: i32,
+   ennemy_id: i32,
 }
 
 impl Action {
-    pub fn new(id: u32, mx: u32, my: u32, type_action: TypeAction, x: u32, y: u32, ennemy_id: u32) -> Self {
+    pub fn new(id: i32, mx: i32, my: i32, type_action: TypeAction, x: i32, y: i32, ennemy_id: i32) -> Self {
         Action { id, mx, my, type_action, x, y, ennemy_id }
     }
 
-    pub fn shoot(id: u32, mx: u32, my: u32, ennemy_id: u32) -> Self {
+    pub fn shoot(id: i32, mx: i32, my: i32, ennemy_id: i32) -> Self {
         Self::new(id, mx, my, TypeAction::Shoot, 0, 0, ennemy_id)
     }
 
-    pub fn throw(id: u32, mx: u32, my: u32, x: u32, y: u32) -> Self {
+    pub fn throw(id: i32, mx: i32, my: i32, x: i32, y: i32) -> Self {
         Self::new(id, mx, my, TypeAction::Throw, x, y, 0)
     }
 
-    pub fn hunker_down(id: u32, mx: u32, my: u32) -> Self {
+    pub fn hunker_down(id: i32, mx: i32, my: i32) -> Self {
         Self::new(id, mx, my, TypeAction::HunkerDown, 0, 0, 0)
     }
 

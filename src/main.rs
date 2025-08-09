@@ -32,11 +32,7 @@ fn main() {
         // IA
         let best_actions =  ia.decide_actions(&state);
 
-        Debug::debug("IA",
-                     &[
-                         ("best_actions", format!("{:#?}", best_actions)),
-                     ],
-        );
+        Debug::debug_vec("Best Actions", &best_actions);
 
         // Output
         state.play(best_actions);

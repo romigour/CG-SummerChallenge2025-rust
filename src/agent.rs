@@ -1,14 +1,14 @@
 #[derive(Clone, Debug, Default, Copy)]
 pub struct Agent {
-    pub id: u32,
-    pub x: u32,
-    pub y: u32,
-    pub shoot_cooldown: u32,
-    pub optimal_range: u32,
-    pub soaking_power: u32,
-    pub splash_bombs: u32,
-    pub cooldown: u32,
-    pub wetness: u32,
+    pub id: i32,
+    pub x: i32,
+    pub y: i32,
+    pub shoot_cooldown: i32,
+    pub optimal_range: i32,
+    pub soaking_power: i32,
+    pub splash_bombs: i32,
+    pub cooldown: i32,
+    pub wetness: i32,
     pub team: Team,
     pub is_dead: bool,
 }

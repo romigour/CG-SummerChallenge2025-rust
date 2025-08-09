@@ -10,6 +10,7 @@ from watchdog.events import FileSystemEventHandler
 # Entry point: lib.rs or main.rs
 ENTRY_FILES = ['src/lib.rs', 'src/main.rs']
 OUTPUT_FILE = 'output.rs'
+TEST_FILE = 'test.rs'
 WATCH_PATH = 'src'
 
 mod_pattern = re.compile(r'^(?P<indent>\s*)mod\s+(?P<name>\w+)\s*;\s*$', re.MULTILINE)
@@ -85,6 +86,8 @@ class ChangeHandler(FileSystemEventHandler):
             return
         if os.path.basename(event.src_path) == OUTPUT_FILE:
             return
+        if os.path.basename(event.src_path) == TEST_FILE:
+                    return
         print(f"⚙️ Changements détectés dans {event.src_path}, régénération...")
         self.callback()
 

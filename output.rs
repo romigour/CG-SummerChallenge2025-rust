@@ -1,4 +1,4 @@
-// Généré à 19:11:19 le 08-08-2025
+// Généré à 13:00:02 le 09-08-2025
 mod action {
     #[derive(Clone, Debug)]
     pub enum TypeAction {
@@ -8,29 +8,29 @@ mod action {
     }
     #[derive(Debug)]
     pub struct Action {
-       id: u32,
-       mx: u32,
-       my: u32,
+       id: i32,
+       mx: i32,
+       my: i32,
        type_action: TypeAction,
-       x: u32,
-       y: u32,
-       ennemy_id: u32,
+       x: i32,
+       y: i32,
+       ennemy_id: i32,
     }
     
     impl Action {
-        pub fn new(id: u32, mx: u32, my: u32, type_action: TypeAction, x: u32, y: u32, ennemy_id: u32) -> Self {
+        pub fn new(id: i32, mx: i32, my: i32, type_action: TypeAction, x: i32, y: i32, ennemy_id: i32) -> Self {
             Action { id, mx, my, type_action, x, y, ennemy_id }
         }
     
-        pub fn shoot(id: u32, mx: u32, my: u32, ennemy_id: u32) -> Self {
+        pub fn shoot(id: i32, mx: i32, my: i32, ennemy_id: i32) -> Self {
             Self::new(id, mx, my, TypeAction::Shoot, 0, 0, ennemy_id)
         }
     
-        pub fn throw(id: u32, mx: u32, my: u32, x: u32, y: u32) -> Self {
+        pub fn throw(id: i32, mx: i32, my: i32, x: i32, y: i32) -> Self {
             Self::new(id, mx, my, TypeAction::Throw, x, y, 0)
         }
     
-        pub fn hunker_down(id: u32, mx: u32, my: u32) -> Self {
+        pub fn hunker_down(id: i32, mx: i32, my: i32) -> Self {
             Self::new(id, mx, my, TypeAction::HunkerDown, 0, 0, 0)
         }
     
@@ -54,18 +54,13 @@ mod state {
         ($x:expr, $t:ident) => ($x.trim().parse::<$t>().unwrap())
     }
     
-    #[derive(Debug)]
-    pub struct GameConstants {
-    
-    }
-    
     #[derive(Clone, Debug)]
     pub struct State {
-        pub turn: u32,
-        pub my_id: u32,
-        pub width: u32,
-        pub height: u32,
-        pub agent_data_count: u32,
+        pub turn: i32,
+        pub my_id: i32,
+        pub width: i32,
+        pub height: i32,
+        pub agent_data_count: i32,
         pub my_idx_arr: Vec<usize>,
         pub enemy_idx_arr: Vec<usize>,
         pub grid: Grid,
@@ -92,22 +87,22 @@ mod state {
         pub fn init_input(state: &mut State) {
             let mut input_line = String::new();
             io::stdin().read_line(&mut input_line).unwrap();
-            let my_id = parse_input!(input_line, u32);
+            let my_id = parse_input!(input_line, i32);
             state.my_id = my_id;
             let mut input_line = String::new();
             io::stdin().read_line(&mut input_line).unwrap();
-            let agent_data_count = parse_input!(input_line, u32);
+            let agent_data_count = parse_input!(input_line, i32);
             state.agent_data_count = agent_data_count;
             for i in 0..agent_data_count as usize {
                 let mut input_line = String::new();
                 io::stdin().read_line(&mut input_line).unwrap();
                 let inputs = input_line.split(" ").collect::<Vec<_>>();
-                let agent_id = parse_input!(inputs[0], u32);
-                let player = parse_input!(inputs[1], u32);
-                let shoot_cooldown = parse_input!(inputs[2], u32);
-                let optimal_range = parse_input!(inputs[3], u32);
-                let soaking_power = parse_input!(inputs[4], u32);
-                let splash_bombs = parse_input!(inputs[5], u32);
+                let agent_id = parse_input!(inputs[0], i32);
+                let player = parse_input!(inputs[1], i32);
+                let shoot_cooldown = parse_input!(inputs[2], i32);
+                let optimal_range = parse_input!(inputs[3], i32);
+                let soaking_power = parse_input!(inputs[4], i32);
+                let splash_bombs = parse_input!(inputs[5], i32);
     
                 let agent = Agent {
                     id: agent_id,
@@ -134,9 +129,9 @@ mod state {
             let mut input_line = String::new();
             io::stdin().read_line(&mut input_line).unwrap();
             let inputs = input_line.split(" ").collect::<Vec<_>>();
-            let width = parse_input!(inputs[0], u32);
+            let width = parse_input!(inputs[0], i32);
             state.width = width;
-            let height = parse_input!(inputs[1], u32);
+            let height = parse_input!(inputs[1], i32);
             state.height = width;
             state.grid = Grid::new(width as usize, height as usize);
             for i in 0..height as usize {
@@ -146,7 +141,7 @@ mod state {
                 for j in 0..width as usize {
                     let x = parse_input!(inputs[3*j], usize);
                     let y = parse_input!(inputs[3*j+1], usize);
-                    let tile_type = parse_input!(inputs[3*j+2], u32);
+                    let tile_type = parse_input!(inputs[3*j+2], i32);
                     state.grid.set(x, y, tile_type);
                 }
             }
@@ -155,7 +150,7 @@ mod state {
         pub fn update_input(state: &mut State) {
             let mut input_line = String::new();
             io::stdin().read_line(&mut input_line).unwrap();
-            let agent_count = parse_input!(input_line, u32); // Total number of agents still in the game
+            let agent_count = parse_input!(input_line, i32); // Total number of agents still in the game
             for i in 0..state.agent_data_count as usize {
                 state.agents[i].is_dead = true;
             }
@@ -165,12 +160,12 @@ mod state {
                 let mut input_line = String::new();
                 io::stdin().read_line(&mut input_line).unwrap();
                 let inputs = input_line.split(" ").collect::<Vec<_>>();
-                let agent_id = parse_input!(inputs[0], u32);
-                let x = parse_input!(inputs[1], u32);
-                let y = parse_input!(inputs[2], u32);
-                let cooldown = parse_input!(inputs[3], u32); // Number of turns before this agent can shoot
-                let splash_bombs = parse_input!(inputs[4], u32);
-                let wetness = parse_input!(inputs[5], u32); // Damage (0-100) this agent has taken
+                let agent_id = parse_input!(inputs[0], i32);
+                let x = parse_input!(inputs[1], i32);
+                let y = parse_input!(inputs[2], i32);
+                let cooldown = parse_input!(inputs[3], i32); // Number of turns before this agent can shoot
+                let splash_bombs = parse_input!(inputs[4], i32);
+                let wetness = parse_input!(inputs[5], i32); // Damage (0-100) this agent has taken
     
                 state.agents[i].is_dead = false;
                 state.agents[i].x = x;
@@ -181,7 +176,7 @@ mod state {
             }
             let mut input_line = String::new();
             io::stdin().read_line(&mut input_line).unwrap();
-            let my_agent_count = parse_input!(input_line, u32);
+            let my_agent_count = parse_input!(input_line, i32);
         }
     
         pub fn is_terminal(&self) -> bool {
@@ -196,23 +191,38 @@ mod state {
             // Simple action set: stay, move in 4 directions within map, attack nearest enemy if within range 1
             // let mut actions = Vec::new();
             // actions.push(Action::Wait);
-            // let dirs = vec![(0,1),(0,-1),(1,0),(-1,0)];
-            // for (dx,dy) in dirs {
-            //     let nx = agent.x + dx;
-            //     let ny = agent.y + dy;
-            //     if nx >= 0 && nx < self.init.map_w && ny >= 0 && ny < self.init.map_h {
-            //         actions.push(Action::Move(nx, ny));
-            //     }
-            // }
-            // // attack if any enemy adjacent
-            // let enemies = if agent.team == Team::Me { &self.enemy_agents } else { &self.my_agents };
-            // for e in enemies {
-            //     let dist = (e.x - agent.x).abs() + (e.y - agent.y).abs();
-            //     if dist <= 1 && e.hp > 0 {
-            //         actions.push(Action::Attack(e.id));
-            //     }
-            // }
-            // actions
+            let dirs: Vec<(i32, i32)> = vec![(0,0), (0,1),(0,-1),(1,0),(-1,0)];
+    
+            let mut moves_possibles: Vec<(i32, i32)> = Vec::new();
+    
+            for (dx,dy) in dirs {
+                let nx = agent.x + dx;
+                let ny = agent.y + dy;
+                if nx >= 0 && nx < self.width && ny >= 0 && ny < self.height {
+                    moves_possibles.push((nx, ny));
+    
+                    // BOMBS
+                    if agent.splash_bombs > 0 {
+    
+                    }
+    
+                    // SHOOT
+                    // if agent.shoot_cooldown <= 0 {
+                    //     for enemy_idx in &self.enemy_idx_arr {
+                    //         let enemy = &self.agents[*enemy_idx];
+                    //         let dist = ((enemy.x - nx).pow(2) + (enemy.y - ny).pow(2)).sqrt();
+                    //         if dist <= agent.optimal_range as f32 {
+                    //             // actions.push(Action::Shoot(agent.id, nx, ny, enemy.id));
+                    //         }
+                    //     }
+                    // }
+                }
+            }
+    
+            for (nx, ny) in moves_possibles {
+                // actions.push(Action::Move(agent.id, nx, ny));
+            }
+    
             Vec::new()
         }
     
@@ -242,15 +252,15 @@ mod state {
 mod agent {
     #[derive(Clone, Debug, Default, Copy)]
     pub struct Agent {
-        pub id: u32,
-        pub x: u32,
-        pub y: u32,
-        pub shoot_cooldown: u32,
-        pub optimal_range: u32,
-        pub soaking_power: u32,
-        pub splash_bombs: u32,
-        pub cooldown: u32,
-        pub wetness: u32,
+        pub id: i32,
+        pub x: i32,
+        pub y: i32,
+        pub shoot_cooldown: i32,
+        pub optimal_range: i32,
+        pub soaking_power: i32,
+        pub splash_bombs: i32,
+        pub cooldown: i32,
+        pub wetness: i32,
         pub team: Team,
         pub is_dead: bool,
     }
@@ -290,7 +300,24 @@ mod utils {
             for (name, value) in params {
                 eprintln!(" {}: {}", name, value);
             }
-            eprintln!("======================");
+            eprintln!();
+        }
+    
+        pub fn debug_vec<T: std::fmt::Debug>(label: &str, values: &[T]) {
+            eprintln!("=== DEBUG: {} ===", label);
+            for value in values.iter() {
+                eprintln!("{:?}", value);
+            }
+            eprintln!();
+        }
+    }
+    
+    pub struct Math {
+    }
+    
+    impl Math {
+        pub fn manhattan(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
+            (x1 - x2).abs() + (y1 - y2).abs()
         }
     }
 }
@@ -299,7 +326,7 @@ mod grid {
     pub struct Grid {
         width: usize,
         height: usize,
-        data: Vec<u32>,
+        data: Vec<i32>,
     }
     
     impl Grid {
@@ -315,11 +342,11 @@ mod grid {
             y * self.width + x
         }
     
-        pub fn get(&self, x: usize, y: usize) -> u32 {
+        pub fn get(&self, x: usize, y: usize) -> i32 {
             self.data[self.index(x, y)]
         }
     
-        pub fn set(&mut self, x: usize, y: usize, value: u32) {
+        pub fn set(&mut self, x: usize, y: usize, value: i32) {
             let idx = self.index(x, y);
             self.data[idx] = value;
         }
@@ -375,11 +402,7 @@ fn main() {
         // IA
         let best_actions =  ia.decide_actions(&state);
 
-        Debug::debug("IA",
-                     &[
-                         ("best_actions", format!("{:#?}", best_actions)),
-                     ],
-        );
+        Debug::debug_vec("Best Actions", &best_actions);
 
         // Output
         state.play(best_actions);
