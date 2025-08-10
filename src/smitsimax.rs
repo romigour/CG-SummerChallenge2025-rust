@@ -2,6 +2,7 @@
 // use rand::rngs::StdRng;
 // use rand::SeedableRng;
 // use crate::action::Action;
+// use crate::scorer::Scorer;
 // use crate::state::State;
 //
 // /// Moteur Smitsimax (générique)
@@ -40,43 +41,44 @@
 //             let mut current = vec![0usize; 4];
 //
 //             for depth in 0..self.max_depth {
-//                 // pour chaque pod, sélectionner un enfant
+//                 let mut actions_to_apply = Vec::new();
+//                 // pour chaque agent, sélectionner un enfant
 //                 for agent in state.agents.iter() {
+//                     let idx = (agent.id - 1) as usize;
 //                     // si pas d'enfants, créer enfants à partir de moves possibles
-//                     if self.trees[pod].nodes[current[pod]].children.is_empty() {
+//                     if self.trees[idx].nodes[current[idx]].children.is_empty() {
 //                         let moves = state.legal_actions_for_agent(agent);
-//                         self.trees[pod].make_children(current[pod], moves);
+//                         self.trees[idx].make_children(current[idx], moves);
 //                     }
 //
 //                     // sélectionner : au début aléatoire, ensuite UCB
 //                     let chosen_child = if sim_id < self.random_pulls {
 //                         // sélection aléatoire globale pendant les random_pulls premières simulations
-//                         self.trees[pod].random_child(current[pod], &mut self.rng)
+//                         self.trees[idx].random_child(current[idx], &mut self.rng)
 //                     } else {
 //                         // compute scale param (optionnel)
 //                         let scale = if self.use_scale {
-//                             let delta = (highest[pod] - lowest[pod]).max(1e-6);
+//                             let delta = (highest[idx] - lowest[idx]).max(1e-6);
 //                             delta
 //                         } else {
 //                             1.0
 //                         };
-//                         self.trees[pod].ucb_select(current[pod], self.exploration, scale)
+//                         self.trees[idx].ucb_select(current[idx], self.exploration, scale)
 //                     };
 //
 //                     // mettre à jour chemin courant
-//                     current[pod] = chosen_child;
+//                     current[idx] = chosen_child;
 //
 //                     // appliquer la move au pod simulé (on simule plus tard après avoir choisi tous les pods pour le tour)
-//                     let action = self.trees[pod].nodes[chosen_child].action.clone();
-//                     state.apply_actions(&action);
+//                     let action = self.trees[idx].nodes[chosen_child].action.clone();
+//                     actions_to_apply.push(&action);
 //                 } // fin boucle pods
 //
-//                 // appliquer la physique & collisions pour ce pas de temps
-//                 G::simulate_step(&mut state);
-//             } // fin profondeur
+//                 state.apply_actions_all(actions_to_apply);
+//             }
 //
 //             // évaluer la fin de la simulation
-//             let scores = G::evaluate(&state); // [f64; 4]
+//             let scores = Scorer::score(&state); // [f64; 4]
 //
 //             // mise à jour lowest/highest (si needed)
 //             for p in 0..4 {
@@ -119,7 +121,7 @@
 //                     best_child = c;
 //                 }
 //             }
-//             result[pod] = tree.nodes[best_child].mv.clone();
+//             result[pod] = tree.nodes[best_child].action.clone();
 //         }
 //
 //         result

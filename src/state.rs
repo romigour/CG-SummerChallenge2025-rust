@@ -215,6 +215,12 @@ impl State {
         Vec::new()
     }
 
+    pub fn apply_actions_all(&mut self, actions: Vec<Action>) {
+        for action in actions {
+            self.apply_actions(action);
+        }
+    }
+
     pub fn apply_actions(&mut self, action: Action) {
         self.turn += 1;
 
