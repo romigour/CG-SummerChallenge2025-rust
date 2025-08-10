@@ -19,8 +19,6 @@ impl IA {
             if agent.is_dead {
                 continue;
             }
-            let actions_for_agent = state.legal_actions_for_agent(agent);
-            let actions_for_agent_len = actions_for_agent.len();
 
             let actions_for_agent_filter = filter_actions(state.legal_actions_for_agent(agent));
             let actions_for_agent_filter_len = actions_for_agent_filter.len();
@@ -51,6 +49,7 @@ impl IA {
 
             let score = Scorer::score(current_state);
 
+
             // Debug::debug_simple(format!("Time1: {:?}", timer.time()));
 
             if score > best_score {
@@ -63,7 +62,7 @@ impl IA {
                 break;
             }
         }
-        //Debug::debug_simple(format!("best_score: {:?}", best_score));
+        Debug::debug_simple(format!("best_score: {:?}", best_score));
         actions
     }
 
@@ -114,10 +113,10 @@ fn filter_actions(actions: Vec<Action>) -> Vec<Action> {
 
     // 2. Trier et limiter
     shoot.sort_by(|a, b| b.score.cmp(&a.score));
-    shoot.truncate(5);
+    shoot.truncate(6);
 
     throw.sort_by(|a, b| b.score.cmp(&a.score));
-    throw.truncate(5);
+    throw.truncate(2);
 
     // 3. Fusionner dans un seul Vec
     let mut result = Vec::new();

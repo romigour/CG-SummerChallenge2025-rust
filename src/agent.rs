@@ -10,6 +10,7 @@ pub struct Agent {
     pub cooldown: i32,
     pub wetness: i32,
     pub team: Team,
+    pub hunker_down: bool,
     pub is_dead: bool,
 }
 

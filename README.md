@@ -12,7 +12,7 @@ Merge les class dans un fichier :
 - Rebuild
 
 # Lancement avec la class Main
-java -cp referee.jar com.codingame.Main stat "java C:\GIT\CG-SummerChallenge2025-bit\bots\PlayerOld.java" "java C:\GIT\CG-SummerChallenge2025-bit\bots\Player.java"
+java -cp referee.jar com.codingame.Main stat "C:\GIT\CG-SummerChallenge2025-rust\bots\PlayerOld.exe" "C:\GIT\CG-SummerChallenge2025-rust\bots\Player.exe"
 
 
 # cg-selfarena https://github.com/Telokis/cg-selfarena

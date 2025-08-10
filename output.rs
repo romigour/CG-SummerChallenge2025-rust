@@ -1,4 +1,4 @@
-// Généré à 00:48:47 le 10-08-2025
+// Généré à 16:44:16 le 10-08-2025
 mod action {
     #[derive(Clone, Debug, Copy, PartialEq, Eq)]
     pub enum TypeAction {
@@ -49,8 +49,8 @@ mod state {
     use crate::agent::{Agent, Team};
     use crate::grid::Grid;
     
-    use std::io;
-    use crate::utils::{Debug, Math};
+    use crate::io_helper::InputSource;
+    use crate::utils::Math;
     
     macro_rules! parse_input {
         ($x:expr, $t:ident) => ($x.trim().parse::<$t>().unwrap())
@@ -86,18 +86,18 @@ mod state {
             }
         }
     
-        pub fn init_input(state: &mut State) {
+        pub fn init_input(state: &mut State, input: &mut InputSource) {
             let mut input_line = String::new();
-            io::stdin().read_line(&mut input_line).unwrap();
+            input.read_line(&mut input_line).unwrap();
             let my_id = parse_input!(input_line, i32);
             state.my_id = my_id;
             let mut input_line = String::new();
-            io::stdin().read_line(&mut input_line).unwrap();
+            input.read_line(&mut input_line).unwrap();
             let agent_data_count = parse_input!(input_line, i32);
             state.agent_data_count = agent_data_count;
-            for i in 0..agent_data_count as usize {
+            for _ in 0..agent_data_count as usize {
                 let mut input_line = String::new();
-                io::stdin().read_line(&mut input_line).unwrap();
+                input.read_line(&mut input_line).unwrap();
                 let inputs = input_line.split(" ").collect::<Vec<_>>();
                 let agent_id = parse_input!(inputs[0], i32);
                 let player = parse_input!(inputs[1], i32);
@@ -118,6 +118,7 @@ mod state {
                     wetness: 0,
                     team: if player == my_id { Team::Me } else { Team::Enemy },
                     is_dead: false,
+                    hunker_down: false,
                 };
     
                 let agent_idx = (agent_id - 1) as usize;
@@ -129,16 +130,16 @@ mod state {
                 state.agents[agent_idx] = agent;
             }
             let mut input_line = String::new();
-            io::stdin().read_line(&mut input_line).unwrap();
+            input.read_line(&mut input_line).unwrap();
             let inputs = input_line.split(" ").collect::<Vec<_>>();
             let width = parse_input!(inputs[0], i32);
             state.width = width;
             let height = parse_input!(inputs[1], i32);
             state.height = height;
             state.grid = Grid::new(width as usize, height as usize);
-            for i in 0..height as usize {
+            for _ in 0..height as usize {
                 let mut input_line = String::new();
-                io::stdin().read_line(&mut input_line).unwrap();
+                input.read_line(&mut input_line).unwrap();
                 let inputs = input_line.split_whitespace().collect::<Vec<_>>();
                 for j in 0..width as usize {
                     let x = parse_input!(inputs[3*j], usize);
@@ -149,19 +150,19 @@ mod state {
             }
         }
     
-        pub fn update_input(state: &mut State) {
+        pub fn update_input(state: &mut State, input: &mut InputSource) {
             state.turn += 1;
             let mut input_line = String::new();
-            io::stdin().read_line(&mut input_line).unwrap();
+            input.read_line(&mut input_line).unwrap();
             let agent_count = parse_input!(input_line, i32); // Total number of agents still in the game
             for i in 0..state.agent_data_count as usize {
                 state.agents[i].is_dead = true;
             }
     
     
-            for i in 0..agent_count as usize {
+            for _ in 0..agent_count as usize {
                 let mut input_line = String::new();
-                io::stdin().read_line(&mut input_line).unwrap();
+                input.read_line(&mut input_line).unwrap();
                 let inputs = input_line.split(" ").collect::<Vec<_>>();
                 let agent_id = parse_input!(inputs[0], i32);
                 let x = parse_input!(inputs[1], i32);
@@ -179,7 +180,7 @@ mod state {
                 state.agents[agent_idx].wetness = wetness;
             }
             let mut input_line = String::new();
-            io::stdin().read_line(&mut input_line).unwrap();
+            input.read_line(&mut input_line).unwrap();
             let my_agent_count = parse_input!(input_line, i32);
         }
     
@@ -207,9 +208,8 @@ mod state {
     
                     // THROW
                     if agent.splash_bombs > 0 {
-                        let mut throw_actions: Vec<(i32, Action)> = Vec::new();
                         for enemy_idx in &self.enemy_idx_arr {
-                            let enemy = &self.agents[*enemy_idx];
+                            let enemy = self.agents[*enemy_idx];
                             let dist = Math::manhattan(nx, ny, enemy.x, enemy.y);
                             if dist <= 4 {
                                 actions.push(Action::throw(agent.id, nx, ny, enemy.x, enemy.y, 100 - enemy.wetness));
@@ -219,7 +219,6 @@ mod state {
     
                     // SHOOT
                     if agent.cooldown <= 0 {
-                        let mut shoot_actions: Vec<(i32, Action)> = Vec::new();
                         for enemy_idx in &self.enemy_idx_arr {
                             let enemy = &self.agents[*enemy_idx];
                             if enemy.is_dead {
@@ -260,24 +259,21 @@ mod state {
             Vec::new()
         }
     
-        pub fn apply_joint_actions(&mut self, my_actions: &[Action], enemy_actions: Option<&[Action]>) {
-            self.turn += 1;
-        }
-    
         pub fn apply_actions(&mut self, action: Action) {
             self.turn += 1;
-    
-            let agent_cooldown;
-            let agent_soaking_power;
     
             let agent = &mut self.agents[action.id as usize - 1];
             agent.x = action.mx;
             agent.y = action.my;
-            agent_cooldown = agent.cooldown;
-            agent_soaking_power = agent.soaking_power;
+            let agent_x = agent.x;
+            let agent_y = agent.y;
+            let agent_cooldown = agent.cooldown;
+            let agent_optimal_range = agent.optimal_range;
+            let agent_soaking_power = agent.soaking_power as f32;
     
+            agent.hunker_down = false;
             if action.type_action == TypeAction::HunkerDown {
-    
+                agent.hunker_down = true;
             } else if action.type_action == TypeAction::Throw {
                 agent.splash_bombs -= 1;
                 for a in self.agents.iter_mut() {
@@ -291,11 +287,60 @@ mod state {
     
             } else if action.type_action == TypeAction::Shoot {
                 agent.cooldown = agent_cooldown;
+                let (enemy_agent_x, enemy_agent_y, enemy_hunker_down) = {
+                    let enemy_agent = &self.agents[action.enemy_id as usize - 1];
+                    (enemy_agent.x, enemy_agent.y, enemy_agent.hunker_down)
+                };
+    
+                let range_modifier = self.get_range_modifier(agent_x, agent_y, agent_optimal_range, enemy_agent_x, enemy_agent_y);
+                let cover_modifier = self.get_cover_modifier(agent_x, agent_y, enemy_agent_x, enemy_agent_y);
+                let hunker_down_bonus = if enemy_hunker_down { 0.25 } else { 0.0 };
+    
                 let enemy_agent = &mut self.agents[action.enemy_id as usize - 1];
-                enemy_agent.wetness += agent_soaking_power;
+                enemy_agent.wetness += (agent_soaking_power * range_modifier * (1.0 - hunker_down_bonus)) as i32;
+                //enemy_agent.wetness += (agent_soaking_power) as i32;
             }
         }
     
+        pub fn get_cover_modifier(&self, shooter_x: i32, shooter_y: i32, target_x: i32, target_y: i32) -> f32 {
+            let dx = target_x - shooter_y;
+            let dy = target_y - shooter_y;
+            let dirs: Vec<(i32, i32)> = vec![(dx, 0), (0, dy)];
+    
+            let mut best_modifier = 1.0;
+    
+            for (dx, dy) in dirs {
+                if dx.abs() > 1 || dy.abs() > 1 {
+                    let adj_x = -dx.signum();
+                    let adj_y = -dy.signum();
+                    let cover_pos_x = target_x + adj_x;
+                    let cover_pos_y = target_y + adj_y;
+    
+                    if Math::chebyshev_to(target_x, target_y, shooter_x, shooter_y) > 1 {
+                        let mut cover_modifier = 1.0;
+                        if (self.grid.get(cover_pos_x as usize, cover_pos_y as usize)) == 1 {
+                            cover_modifier = 0.5;
+                        } else if (self.grid.get(cover_pos_x as usize, cover_pos_y as usize)) == 2 {
+                            cover_modifier = 0.25;
+                        }
+                        best_modifier = if best_modifier > cover_modifier { cover_modifier } else { best_modifier };
+                    }
+                }
+            }
+    
+            best_modifier
+        }
+        // pub fn get_range_modifier(&self, shooter: Agent, target: Agent) -> f32 {
+        pub fn get_range_modifier(&self, agent_x: i32, agent_y: i32, agent_optimal_shoot: i32, enemy_agent_x: i32, enemy_agent_y: i32) -> f32 {
+            let dist = Math::manhattan(agent_x, agent_y, enemy_agent_x, enemy_agent_y);
+            if dist <= agent_optimal_shoot {
+                1.0
+            } else if dist <= agent_optimal_shoot * 2 {
+                0.5
+            } else {
+                0.0
+            }
+        }
         pub fn calcul_zone_couverture(&self, agent_id: i32, nx: i32, ny: i32) -> i32 {
             let mut my_zones = 0;
             let mut enemy_zones = 0;
@@ -341,7 +386,7 @@ mod state {
     
                     if dmy < denemy {
                         my_zones += 1;
-                    } else if (denemy < dmy) {
+                    } else if denemy < dmy {
                         enemy_zones += 1;
                     }
                 }
@@ -369,6 +414,7 @@ mod agent {
         pub cooldown: i32,
         pub wetness: i32,
         pub team: Team,
+        pub hunker_down: bool,
         pub is_dead: bool,
     }
     
@@ -380,9 +426,8 @@ mod agent {
     }
 }
 mod utils {
-    use std::time::{Instant, Duration};
     use std::eprintln;
-    use std::fmt::Display;
+    use std::time::{Duration, Instant};
     
     pub struct Timer {
         start: Instant,
@@ -439,6 +484,12 @@ mod utils {
         pub fn manhattan(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
             (x1 - x2).abs() + (y1 - y2).abs()
         }
+    
+        pub fn chebyshev_to(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
+            let dx = (x2 - x1).abs();
+            let dy = (y2 - y1).abs();
+            dx.max(dy)
+        }
     }
 }
 mod grid {
@@ -472,75 +523,16 @@ mod grid {
         }
     }
 }
-mod ia {
-    use crate::action::Action;
-    use crate::scorer::Scorer;
-    use crate::state::State;
-    use crate::utils::{Debug, Timer};
-    
-    pub struct IA;
-    
-    impl IA {
-        pub fn new() -> Self {
-            IA
-        }
-        pub fn decide_actions(&self, state: &State, timer: &Timer) -> Vec<Action> {
-            let mut actions = Vec::new();
-    
-            for idx in &state.my_idx_arr {
-                let agent = &state.agents[*idx];
-                if agent.is_dead {
-                    continue;
-                }
-                let actionsAgent = state.legal_actions_for_agent(agent);
-                let mut best_action: Option<Action> = None;
-                let mut best_score = i32::MIN;
-                Debug::debug_vec(format!("Agent n°{:?}", agent.id).as_str(), &actionsAgent);
-                for action in actionsAgent {
-                    let mut current_state = state.clone();
-                    current_state.apply_actions(action);
-    
-                    // Debug::debug("Current State",
-                    //              &[
-                    //                  ("action", action.display()),
-                    //                  ("current_state", format!("{:?}", current_state)),
-                    //              ],
-                    // );
-                    // Debug::debug_simple(format!("Time1: {:?}", timer.time()));
-    
-                    let score = Scorer::score(current_state);
-                    // Debug::debug_simple(format!("Time1: {:?}", timer.time()));
-                    if score > best_score {
-                        best_score = score;
-                        best_action = Option::from(action);
-                    }
-                }
-    
-                //Debug::debug_vec(format!("Action agent n°{:?}", agent.id).as_str(), &actionsAgent);
-                if best_action.is_none() {
-                    actions.push(Action::hunker_down(agent.id, agent.x, agent.y));
-                } else {
-                    Debug::debug_simple(format!("Score agent n° {:?}: {:?} -> {:?}", agent.id, best_score, best_action.unwrap()));
-                    actions.push(best_action.unwrap());
-                }
-    
-            }
-    
-            actions
-        }
-    }
-}
 mod scorer {
     use crate::agent::Team;
     use crate::state::State;
+    use crate::utils::Debug;
     
     pub struct Scorer;
     
     impl Scorer {
-        pub fn new() -> Self {
-            Scorer
-        }
         pub fn score(state: State) -> i32 {
+            let mut my_position_score = 0;
             let mut my_wetness_score = 0;
             let mut enemy_wetness_score = 0;
             let mut nb_my_50wetness = 0;
@@ -564,6 +556,8 @@ mod scorer {
                     if agent.wetness >= 100 {
                         nb_my_100wetness += 1;
                     }
+                    my_position_score += state.width - ((state.width / 2) - agent.x).abs();
+                    my_position_score += state.height - ((state.height / 2) - agent.y).abs();
     
                     // for enemy in &state.agents {
                     //     if enemy.player != state.my_id {
@@ -582,12 +576,12 @@ mod scorer {
                 }
             }
     
-    
-    
             let mut score = 0;
             score += zones * 10;
     
-            score -= (my_wetness_score / 100) * 100;
+           // score += my_position_score /10;
+    
+            score -= my_wetness_score * 1000;
             score -= nb_my_50wetness * 10000;
             score -= nb_my_100wetness * 100000;
     
@@ -595,23 +589,22 @@ mod scorer {
             score += nb_enemy_50wetness * 100;
             score += nb_enemy_100wetness * 1000;
     
-    
             score
     
         }
     }
 }
-mod ia2 {
+mod ia {
     use crate::action::{Action, TypeAction};
     use crate::scorer::Scorer;
     use crate::state::State;
     use crate::utils::{Debug, Timer};
     
-    pub struct IA2;
+    pub struct IA;
     
-    impl IA2 {
+    impl IA {
         pub fn new() -> Self {
-            IA2
+            IA
         }
         pub fn decide_actions(&self, state: &State, timer: &Timer) -> Vec<Action> {
             let mut actions = Vec::new();
@@ -623,8 +616,6 @@ mod ia2 {
                 if agent.is_dead {
                     continue;
                 }
-                let actions_for_agent = state.legal_actions_for_agent(agent);
-                let actions_for_agent_len = actions_for_agent.len();
     
                 let actions_for_agent_filter = filter_actions(state.legal_actions_for_agent(agent));
                 let actions_for_agent_filter_len = actions_for_agent_filter.len();
@@ -655,6 +646,7 @@ mod ia2 {
     
                 let score = Scorer::score(current_state);
     
+    
                 // Debug::debug_simple(format!("Time1: {:?}", timer.time()));
     
                 if score > best_score {
@@ -667,7 +659,7 @@ mod ia2 {
                     break;
                 }
             }
-            //Debug::debug_simple(format!("best_score: {:?}", best_score));
+            Debug::debug_simple(format!("best_score: {:?}", best_score));
             actions
         }
     
@@ -718,10 +710,10 @@ mod ia2 {
     
         // 2. Trier et limiter
         shoot.sort_by(|a, b| b.score.cmp(&a.score));
-        shoot.truncate(5);
+        shoot.truncate(6);
     
         throw.sort_by(|a, b| b.score.cmp(&a.score));
-        throw.truncate(5);
+        throw.truncate(2);
     
         // 3. Fusionner dans un seul Vec
         let mut result = Vec::new();
@@ -732,24 +724,320 @@ mod ia2 {
         result
     }
 }
-use crate::ia2::IA2;
+mod node {
+    use crate::action::Action;
+    
+    pub struct Node {
+        pub parent: Option<usize>,
+        pub children: Vec<usize>,
+        pub visits: usize,
+        pub score: f64, // somme des scores (on divisera par visits pour moyenne)
+        pub action: Option<Action>,
+    }
+    
+    impl Node {
+        pub fn new_root() -> Self {
+            Node {
+                parent: None,
+                children: Vec::new(),
+                visits: 0,
+                score: 0.0,
+                action: None,
+            }
+        }
+    
+        pub fn new_child(parent: usize, action: Action) -> Self {
+            Node {
+                parent: Some(parent),
+                children: Vec::new(),
+                visits: 0,
+                score: 0.0,
+                action: Some(action),
+            }
+        }
+    }
+}
+mod tree {
+    use crate::action::Action;
+    use crate::node::Node;
+    use rand::Rng;
+    
+    pub struct Tree {
+        nodes: Vec<Node>, // indexable, root = 0
+    }
+    
+    impl Tree {
+        pub fn new() -> Self {
+            Tree { nodes: vec![Node::new_root()] }
+        }
+    
+        fn make_children(&mut self, node_idx: usize, moves: Vec<Action>) {
+            // créer un enfant par move
+            for mv in moves {
+                let child_idx = self.nodes.len();
+                let child = Node::new_child(node_idx, mv);
+                self.nodes.push(child);
+                self.nodes[node_idx].children.push(child_idx);
+            }
+        }
+    
+        fn random_child(&self, node_idx: usize, rng: &mut impl Rng) -> usize {
+            let children = &self.nodes[node_idx].children;
+            let pick = rng.gen_range(0..children.len());
+            children[pick]
+        }
+    
+        /// Select child via UCB (retourne index du nœud enfant)
+        fn ucb_select(&self, node_idx: usize, exploration: f64, scale_param: f64) -> usize {
+            let parent_visits = (self.nodes[node_idx].visits.max(1) as f64).max(1.0);
+            let mut best_idx = self.nodes[node_idx].children[0];
+            let mut best_val = std::f64::NEG_INFINITY;
+    
+            for &c in &self.nodes[node_idx].children {
+                let child = &self.nodes[c];
+                let child_vis = (child.visits.max(1) as f64).max(1.0);
+                let avg = child.score / child_vis; // moyenne
+                // formule inspirée du post :
+                let exploitation = avg / scale_param;
+                let exploration_term = exploration * (parent_visits.ln().sqrt() / child_vis.sqrt());
+                let ucb = exploitation + exploration_term;
+    
+                if ucb > best_val {
+                    best_val = ucb;
+                    best_idx = c;
+                }
+            }
+            best_idx
+        }
+    }
+}
+mod smitsimax {
+    // use crate::tree::Tree;
+    // use rand::rngs::StdRng;
+    // use rand::SeedableRng;
+    // use crate::action::Action;
+    // use crate::state::State;
+    //
+    // /// Moteur Smitsimax (générique)
+    // pub struct Smitsimax {
+    //     trees: Vec<Tree>, // 4 arbres (un par pod)
+    //     exploration: f64,
+    //     max_depth: usize,
+    //     sims: usize,
+    //     random_pulls: usize,  // ex: 10 (tirages aléatoires initiaux)
+    //     use_scale: bool,
+    //     rng: StdRng,
+    // }
+    //
+    // impl Smitsimax {
+    //     fn new(sims: usize, max_depth: usize, exploration: f64, random_pulls: usize, seed: u64) -> Self {
+    //         Smitsimax {
+    //             trees: (0..4).map(|_| Tree::new()).collect(),
+    //             exploration,
+    //             max_depth,
+    //             sims,
+    //             random_pulls,
+    //             use_scale: false,
+    //             rng: StdRng::seed_from_u64(seed),
+    //         }
+    //     }
+    //
+    //     /// lance la recherche et renvoie les indices d'enfants choisis à la racine (1 move par pod)
+    //     fn search(&mut self, base_state: &State) -> [Action; 4] {
+    //         // stat auto : lowest/highest si tu veux normaliser par pod
+    //         let mut lowest = [f64::INFINITY; 4];
+    //         let mut highest = [f64::NEG_INFINITY; 4];
+    //
+    //         for sim_id in 0..self.sims {
+    //             let mut state = base_state.clone();
+    //             // chemin sélectionné courant (index node) pour chaque pod au travers de la profondeur
+    //             let mut current = vec![0usize; 4];
+    //
+    //             for depth in 0..self.max_depth {
+    //                 // pour chaque pod, sélectionner un enfant
+    //                 for agent in state.agents.iter() {
+    //                     // si pas d'enfants, créer enfants à partir de moves possibles
+    //                     if self.trees[pod].nodes[current[pod]].children.is_empty() {
+    //                         let moves = state.legal_actions_for_agent(agent);
+    //                         self.trees[pod].make_children(current[pod], moves);
+    //                     }
+    //
+    //                     // sélectionner : au début aléatoire, ensuite UCB
+    //                     let chosen_child = if sim_id < self.random_pulls {
+    //                         // sélection aléatoire globale pendant les random_pulls premières simulations
+    //                         self.trees[pod].random_child(current[pod], &mut self.rng)
+    //                     } else {
+    //                         // compute scale param (optionnel)
+    //                         let scale = if self.use_scale {
+    //                             let delta = (highest[pod] - lowest[pod]).max(1e-6);
+    //                             delta
+    //                         } else {
+    //                             1.0
+    //                         };
+    //                         self.trees[pod].ucb_select(current[pod], self.exploration, scale)
+    //                     };
+    //
+    //                     // mettre à jour chemin courant
+    //                     current[pod] = chosen_child;
+    //
+    //                     // appliquer la move au pod simulé (on simule plus tard après avoir choisi tous les pods pour le tour)
+    //                     let action = self.trees[pod].nodes[chosen_child].action.clone();
+    //                     state.apply_actions(&action);
+    //                 } // fin boucle pods
+    //
+    //                 // appliquer la physique & collisions pour ce pas de temps
+    //                 G::simulate_step(&mut state);
+    //             } // fin profondeur
+    //
+    //             // évaluer la fin de la simulation
+    //             let scores = G::evaluate(&state); // [f64; 4]
+    //
+    //             // mise à jour lowest/highest (si needed)
+    //             for p in 0..4 {
+    //                 if scores[p] < lowest[p] { lowest[p] = scores[p]; }
+    //                 if scores[p] > highest[p] { highest[p] = scores[p]; }
+    //             }
+    //
+    //             // backpropagate : pour chaque pod on remonte depuis current[pod] jusqu'à la racine
+    //             for pod in 0..4 {
+    //                 let mut idx = current[pod];
+    //                 loop {
+    //                     {
+    //                         let node = &mut self.trees[pod].nodes[idx];
+    //                         node.visits += 1;
+    //                         node.score += scores[pod];
+    //                     }
+    //                     // remonter
+    //                     if let Some(parent_idx) = self.trees[pod].nodes[idx].parent {
+    //                         idx = parent_idx;
+    //                     } else {
+    //                         break;
+    //                     }
+    //                 }
+    //             }
+    //         } // fin sims
+    //
+    //         // Après toutes les simulations : choisir la meilleure child de la racine pour chaque arbre
+    //         let mut result = [Action::default(); 4];
+    //         for pod in 0..4 {
+    //             let root = 0usize;
+    //             let tree = &self.trees[pod];
+    //             // choisir le child avec la moyenne la plus haute (ou visites max)
+    //             let mut best_child = tree.nodes[root].children[0];
+    //             let mut best_avg = std::f64::NEG_INFINITY;
+    //             for &c in &tree.nodes[root].children {
+    //                 let nd = &tree.nodes[c];
+    //                 let avg = if nd.visits>0 { nd.score / (nd.visits as f64) } else { nd.score };
+    //                 if avg > best_avg {
+    //                     best_avg = avg;
+    //                     best_child = c;
+    //                 }
+    //             }
+    //             result[pod] = tree.nodes[best_child].mv.clone();
+    //         }
+    //
+    //         result
+    //     }
+    // }
+}
+mod io_helper {
+    use std::fs::File;
+    use std::io::{self, BufRead, BufReader};
+    
+    pub enum InputSource {
+        Stdin(io::Stdin),
+        File(BufReader<File>),
+    }
+    
+    impl InputSource {
+        pub fn from_stdin() -> Self {
+            InputSource::Stdin(io::stdin())
+        }
+    
+        pub fn from_file(path: &str) -> io::Result<Self> {
+            let file = File::open(path)?;
+            Ok(InputSource::File(BufReader::new(file)))
+        }
+    
+        pub fn read_line(&mut self, buf: &mut String) -> io::Result<usize> {
+            buf.clear();
+            match self {
+                InputSource::Stdin(stdin) => stdin.read_line(buf),
+                InputSource::File(reader) => reader.read_line(buf),
+            }
+        }
+    }
+}
+mod tests {
+    #[cfg(test)]
+    mod tests {
+        use std::fs::File;
+        use std::io::{BufReader};
+        use std::path::Path;
+        use crate::io_helper::InputSource;
+        use crate::state::State;
+    
+        #[test]
+        fn test_init_and_update_input() {
+            // 🔹 Création du State
+            let mut state = State::new();
+            assert_eq!(state.my_id, 0);
+            // 📂 Chemins vers les fichiers (relatif au fichier tests.rs)
+            // let init_path = Path::new("./files/input.txt");
+            // let update_path = Path::new("./files/update.txt");
+            //
+            // // 📂 Ouverture des fichiers
+            // let init_file = File::open(init_path).expect("Impossible d'ouvrir init.txt");
+            // let update_file = File::open(&update_path).expect("Impossible d'ouvrir update.txt");
+            //
+            // let mut init_input_source = InputSource::File(BufReader::new(init_file));
+            // let mut update_input_source = InputSource::File(BufReader::new(update_file));
+    
+            // // 🔹 Lecture init
+            // State::init_input(&mut state, &mut init_input_source);
+            //
+            // // ✅ Assert sur l'init
+            // assert_eq!(state.my_id, 0);
+            // assert_eq!(state.agent_data_count, 2);
+            // assert_eq!(state.width, 3);
+            // assert_eq!(state.height, 3);
+            // assert_eq!(state.my_idx_arr.len(), 1);
+            // assert_eq!(state.enemy_idx_arr.len(), 1);
+            //
+            // // 🔹 Lecture update
+            // State::update_input(&mut state, &mut update_input_source);
+            //
+            // // ✅ Assert sur le tour
+            // assert_eq!(state.turn, 1);
+            // assert_eq!(state.agents[0].x, 5);
+            // assert_eq!(state.agents[0].y, 5);
+            // assert_eq!(state.agents[1].x, 6);
+            // assert_eq!(state.agents[1].y, 6);
+            // assert_eq!(state.agents[1].wetness, 10);
+        }
+    }
+}
+use crate::ia::IA;
 use crate::state::State;
 use crate::utils::{Debug, Timer};
 use std::time::Duration;
+use crate::io_helper::InputSource;
 
 fn main() {
+    let mut input_source = InputSource::from_stdin();
+
     let mut state = State::new();
 
-    let ia = IA2::new();
+    let ia = IA::new();
     let mut timer = Timer::new(Duration::from_millis(45));
 
     // 1. Lecture des inputs initiaux
-    State::init_input(&mut state);
+    State::init_input(&mut state, &mut input_source);
 
     // 2. Boucle de jeu
     loop {
         // Lecture des inputs du tour
-        State::update_input(&mut state);
+        State::update_input(&mut state, &mut input_source);
 
         timer.start();
 

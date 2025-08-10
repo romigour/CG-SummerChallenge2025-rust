@@ -1,6 +1,5 @@
-use std::time::{Instant, Duration};
 use std::eprintln;
-use std::fmt::Display;
+use std::time::{Duration, Instant};
 
 pub struct Timer {
     start: Instant,
@@ -56,5 +55,11 @@ pub struct Math {
 impl Math {
     pub fn manhattan(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
         (x1 - x2).abs() + (y1 - y2).abs()
+    }
+
+    pub fn chebyshev_to(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
+        let dx = (x2 - x1).abs();
+        let dy = (y2 - y1).abs();
+        dx.max(dy)
     }
 }

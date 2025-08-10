@@ -1,13 +1,12 @@
 use crate::agent::Team;
 use crate::state::State;
+use crate::utils::Debug;
 
 pub struct Scorer;
 
 impl Scorer {
-    pub fn new() -> Self {
-        Scorer
-    }
     pub fn score(state: State) -> i32 {
+        let mut my_position_score = 0;
         let mut my_wetness_score = 0;
         let mut enemy_wetness_score = 0;
         let mut nb_my_50wetness = 0;
@@ -31,6 +30,8 @@ impl Scorer {
                 if agent.wetness >= 100 {
                     nb_my_100wetness += 1;
                 }
+                my_position_score += state.width - ((state.width / 2) - agent.x).abs();
+                my_position_score += state.height - ((state.height / 2) - agent.y).abs();
 
                 // for enemy in &state.agents {
                 //     if enemy.player != state.my_id {
@@ -49,19 +50,18 @@ impl Scorer {
             }
         }
 
-
-
         let mut score = 0;
         score += zones * 10;
 
-        score -= (my_wetness_score / 100) * 100;
+       // score += my_position_score /10;
+
+        score -= my_wetness_score * 1000;
         score -= nb_my_50wetness * 10000;
         score -= nb_my_100wetness * 100000;
 
         score += (enemy_wetness_score * 10) / 100;
         score += nb_enemy_50wetness * 100;
         score += nb_enemy_100wetness * 1000;
-
 
         score
 
