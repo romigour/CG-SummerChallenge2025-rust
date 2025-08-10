@@ -1,4 +1,4 @@
-// Généré à 16:44:16 le 10-08-2025
+// Généré à 17:10:54 le 10-08-2025
 mod action {
     #[derive(Clone, Debug, Copy, PartialEq, Eq)]
     pub enum TypeAction {
@@ -50,7 +50,7 @@ mod state {
     use crate::grid::Grid;
     
     use crate::io_helper::InputSource;
-    use crate::utils::Math;
+    use crate::utils::{Debug, Math};
     
     macro_rules! parse_input {
         ($x:expr, $t:ident) => ($x.trim().parse::<$t>().unwrap())
@@ -155,10 +155,9 @@ mod state {
             let mut input_line = String::new();
             input.read_line(&mut input_line).unwrap();
             let agent_count = parse_input!(input_line, i32); // Total number of agents still in the game
-            for i in 0..state.agent_data_count as usize {
+            for i in 0..10 {
                 state.agents[i].is_dead = true;
             }
-    
     
             for _ in 0..agent_count as usize {
                 let mut input_line = String::new();
@@ -206,40 +205,44 @@ mod state {
                         continue
                     }
     
-                    // THROW
-                    if agent.splash_bombs > 0 {
-                        for enemy_idx in &self.enemy_idx_arr {
-                            let enemy = self.agents[*enemy_idx];
-                            let dist = Math::manhattan(nx, ny, enemy.x, enemy.y);
-                            if dist <= 4 {
-                                actions.push(Action::throw(agent.id, nx, ny, enemy.x, enemy.y, 100 - enemy.wetness));
+                    if agent.team == Team::Me {
+                        // TODO quand on voudra gérer les actions des ennemis, il faudra modifier ces boucles:
+                        // for enemy_idx in &self.enemy_idx_arr
+    
+                        // THROW
+                        if agent.splash_bombs > 0 {
+                            for enemy_idx in &self.enemy_idx_arr {
+                                let enemy = self.agents[*enemy_idx];
+                                let dist = Math::manhattan(nx, ny, enemy.x, enemy.y);
+                                if dist <= 4 {
+                                    actions.push(Action::throw(agent.id, nx, ny, enemy.x, enemy.y, 100 - enemy.wetness));
+                                }
+                            }
+                        }
+    
+                        // SHOOT
+                        if agent.cooldown <= 0 {
+                            for enemy_idx in &self.enemy_idx_arr {
+                                let enemy = &self.agents[*enemy_idx];
+                                if enemy.is_dead {
+                                    continue;
+                                }
+    
+                                let dist = Math::manhattan(nx, ny, enemy.x, enemy.y);
+                                if dist > agent.optimal_range * 2 {
+                                    continue
+                                }
+    
+                                let mut bonus = 0;
+                                if dist < agent.optimal_range {
+                                    bonus = 10;
+                                }
+    
+                                let score = dist + bonus;
+                                actions.push(Action::shoot(agent.id, nx, ny, enemy.id, score));
                             }
                         }
                     }
-    
-                    // SHOOT
-                    if agent.cooldown <= 0 {
-                        for enemy_idx in &self.enemy_idx_arr {
-                            let enemy = &self.agents[*enemy_idx];
-                            if enemy.is_dead {
-                                continue;
-                            }
-    
-                            let dist = Math::manhattan(nx, ny, enemy.x, enemy.y);
-                            if dist > agent.optimal_range * 2 {
-                                continue
-                            }
-    
-                            let mut bonus = 0;
-                            if dist < agent.optimal_range {
-                                bonus = 10;
-                            }
-    
-                            let score = dist + bonus;
-                            actions.push(Action::shoot(agent.id, nx, ny, enemy.id, score));
-                        }
-                    }
-    
                     actions.push(Action::hunker_down(agent.id, nx, ny));
                 }
             }
