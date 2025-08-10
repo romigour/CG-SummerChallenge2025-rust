@@ -3,11 +3,10 @@ mod state;
 mod agent;
 mod utils;
 mod grid;
-mod ia;
 mod scorer;
-mod ia2;
+mod ia;
 
-use crate::ia2::IA2;
+use crate::ia::IA;
 use crate::state::State;
 use crate::utils::{Debug, Timer};
 use std::time::Duration;
@@ -15,7 +14,7 @@ use std::time::Duration;
 fn main() {
     let mut state = State::new();
 
-    let ia = IA2::new();
+    let ia = IA::new();
     let mut timer = Timer::new(Duration::from_millis(45));
 
     // 1. Lecture des inputs initiaux
