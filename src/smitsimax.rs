@@ -1,129 +1,54 @@
-// use crate::tree::Tree;
-// use rand::rngs::StdRng;
-// use rand::SeedableRng;
-// use crate::action::Action;
+// use crate::action::{Action, TypeAction};
+// use crate::node::Node;
 // use crate::scorer::Scorer;
 // use crate::state::State;
+// use crate::utils::{Debug, Timer};
 //
-// /// Moteur Smitsimax (générique)
-// pub struct Smitsimax {
-//     trees: Vec<Tree>, // 4 arbres (un par pod)
-//     exploration: f64,
-//     max_depth: usize,
-//     sims: usize,
-//     random_pulls: usize,  // ex: 10 (tirages aléatoires initiaux)
-//     use_scale: bool,
-//     rng: StdRng,
-// }
+// pub struct Smitsimax;
 //
 // impl Smitsimax {
-//     fn new(sims: usize, max_depth: usize, exploration: f64, random_pulls: usize, seed: u64) -> Self {
-//         Smitsimax {
-//             trees: (0..4).map(|_| Tree::new()).collect(),
-//             exploration,
-//             max_depth,
-//             sims,
-//             random_pulls,
-//             use_scale: false,
-//             rng: StdRng::seed_from_u64(seed),
-//         }
+//     pub fn new() -> Self {
+//         Smitsimax
 //     }
+//     pub fn decide_actions(&self, state: &State, timer: &Timer) -> Vec<Action> {
 //
-//     /// lance la recherche et renvoie les indices d'enfants choisis à la racine (1 move par pod)
-//     fn search(&mut self, base_state: &State) -> [Action; 4] {
-//         // stat auto : lowest/highest si tu veux normaliser par pod
-//         let mut lowest = [f64::INFINITY; 4];
-//         let mut highest = [f64::NEG_INFINITY; 4];
+//         let mut actions = Vec::new();
 //
-//         for sim_id in 0..self.sims {
-//             let mut state = base_state.clone();
-//             // chemin sélectionné courant (index node) pour chaque pod au travers de la profondeur
-//             let mut current = vec![0usize; 4];
+//         while !timer.is_time_up() {
+//             let mut current_state = state.clone();
+//             let mut nodes: [Node; 10] = [Node::new_root(); 10];
 //
-//             for depth in 0..self.max_depth {
-//                 let mut actions_to_apply = Vec::new();
-//                 // pour chaque agent, sélectionner un enfant
-//                 for agent in state.agents.iter() {
-//                     let idx = (agent.id - 1) as usize;
-//                     // si pas d'enfants, créer enfants à partir de moves possibles
-//                     if self.trees[idx].nodes[current[idx]].children.is_empty() {
-//                         let moves = state.legal_actions_for_agent(agent);
-//                         self.trees[idx].make_children(current[idx], moves);
-//                     }
+//             for agent in current_state.agents {
+//                 if agent.is_dead {
+//                     continue
+//                 }
 //
-//                     // sélectionner : au début aléatoire, ensuite UCB
-//                     let chosen_child = if sim_id < self.random_pulls {
-//                         // sélection aléatoire globale pendant les random_pulls premières simulations
-//                         self.trees[idx].random_child(current[idx], &mut self.rng)
-//                     } else {
-//                         // compute scale param (optionnel)
-//                         let scale = if self.use_scale {
-//                             let delta = (highest[idx] - lowest[idx]).max(1e-6);
-//                             delta
-//                         } else {
-//                             1.0
-//                         };
-//                         self.trees[idx].ucb_select(current[idx], self.exploration, scale)
-//                     };
+//                 let mut node = nodes[(agent.id - 1) as usize];
 //
-//                     // mettre à jour chemin courant
-//                     current[idx] = chosen_child;
-//
-//                     // appliquer la move au pod simulé (on simule plus tard après avoir choisi tous les pods pour le tour)
-//                     let action = self.trees[idx].nodes[chosen_child].action.clone();
-//                     actions_to_apply.push(&action);
-//                 } // fin boucle pods
-//
-//                 state.apply_actions_all(actions_to_apply);
-//             }
-//
-//             // évaluer la fin de la simulation
-//             let scores = Scorer::score(&state); // [f64; 4]
-//
-//             // mise à jour lowest/highest (si needed)
-//             for p in 0..4 {
-//                 if scores[p] < lowest[p] { lowest[p] = scores[p]; }
-//                 if scores[p] > highest[p] { highest[p] = scores[p]; }
-//             }
-//
-//             // backpropagate : pour chaque pod on remonte depuis current[pod] jusqu'à la racine
-//             for pod in 0..4 {
-//                 let mut idx = current[pod];
-//                 loop {
-//                     {
-//                         let node = &mut self.trees[pod].nodes[idx];
-//                         node.visits += 1;
-//                         node.score += scores[pod];
-//                     }
-//                     // remonter
-//                     if let Some(parent_idx) = self.trees[pod].nodes[idx].parent {
-//                         idx = parent_idx;
-//                     } else {
-//                         break;
+//                 if node.visits == 1 {
+//                     let mut actions = current_state.legal_actions_for_agent(&agent);
+//                     for action in actions {
+//                         node.children.push(Node::new_child(node, action));
 //                     }
 //                 }
-//             }
-//         } // fin sims
 //
-//         // Après toutes les simulations : choisir la meilleure child de la racine pour chaque arbre
-//         let mut result = [Action::default(); 4];
-//         for pod in 0..4 {
-//             let root = 0usize;
-//             let tree = &self.trees[pod];
-//             // choisir le child avec la moyenne la plus haute (ou visites max)
-//             let mut best_child = tree.nodes[root].children[0];
-//             let mut best_avg = std::f64::NEG_INFINITY;
-//             for &c in &tree.nodes[root].children {
-//                 let nd = &tree.nodes[c];
-//                 let avg = if nd.visits>0 { nd.score / (nd.visits as f64) } else { nd.score };
-//                 if avg > best_avg {
-//                     best_avg = avg;
-//                     best_child = c;
-//                 }
+//                 // Calcul des scores UCB
+//                 // let ucb_scores: Vec<f64> = node.children.iter()
+//                 //     .zip(node.visites.iter())
+//                 //     .map(|(&avg, &count)| ucb1(avg, total_plays, count))
+//                 //     .collect();
+//
 //             }
-//             result[pod] = tree.nodes[best_child].action.clone();
 //         }
 //
-//         result
+//
+//         actions
 //     }
+// }
+//
+// fn ucb1(avg_reward: f64, total_plays: u32, action_plays: u32) -> f64 {
+//     if action_plays == 0 {
+//         return f64::INFINITY; // Pour forcer l'exploration au début
+//     }
+//     avg_reward + ((2.0 * (total_plays as f64).ln()) / (action_plays as f64)).sqrt()
 // }
