@@ -159,8 +159,6 @@ impl State {
                 }
 
                 if agent.team == Team::Me {
-                    // TODO quand on voudra gérer les actions des ennemis, il faudra modifier ces boucles:
-                    // for enemy_idx in &self.enemy_idx_arr
 
                     // THROW
                     if agent.splash_bombs > 0 {
@@ -176,6 +174,40 @@ impl State {
                     // SHOOT
                     if agent.cooldown <= 0 {
                         for enemy_idx in &self.enemy_idx_arr {
+                            let enemy = &self.agents[*enemy_idx];
+                            if enemy.is_dead {
+                                continue;
+                            }
+
+                            let dist = Math::manhattan(nx, ny, enemy.x, enemy.y);
+                            if dist > agent.optimal_range * 2 {
+                                continue
+                            }
+
+                            let mut bonus = 0;
+                            if dist < agent.optimal_range {
+                                bonus = 10;
+                            }
+
+                            let score = dist + bonus;
+                            actions.push(Action::shoot(agent.id, nx, ny, enemy.id, score));
+                        }
+                    }
+                } else {
+                    // THROW
+                    if agent.splash_bombs > 0 {
+                        for enemy_idx in &self.my_idx_arr {
+                            let enemy = self.agents[*enemy_idx];
+                            let dist = Math::manhattan(nx, ny, enemy.x, enemy.y);
+                            if dist <= 4 {
+                                actions.push(Action::throw(agent.id, nx, ny, enemy.x, enemy.y, 100 - enemy.wetness));
+                            }
+                        }
+                    }
+
+                    // SHOOT
+                    if agent.cooldown <= 0 {
+                        for enemy_idx in &self.my_idx_arr {
                             let enemy = &self.agents[*enemy_idx];
                             if enemy.is_dead {
                                 continue;

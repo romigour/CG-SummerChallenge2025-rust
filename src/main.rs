@@ -6,8 +6,6 @@ mod grid;
 mod scorer;
 mod ia;
 mod node;
-mod tree;
-mod smitsimax;
 mod io_helper;
 mod tests;
 
@@ -23,7 +21,7 @@ fn main() {
     let mut state = State::new();
 
     let ia = IA::new();
-    let mut timer = Timer::new(Duration::from_millis(45));
+    let mut timer = Timer::new(Duration::from_millis(55));
 
     // 1. Lecture des inputs initiaux
     State::init_input(&mut state, &mut input_source);
