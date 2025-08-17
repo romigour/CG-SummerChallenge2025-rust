@@ -273,7 +273,7 @@ impl State {
         agent.y = action.my;
         let agent_x = agent.x;
         let agent_y = agent.y;
-        let agent_cooldown = agent.cooldown;
+        let agent_cooldown = agent.shoot_cooldown;
         let agent_optimal_range = agent.optimal_range;
         let agent_soaking_power = agent.soaking_power as f32;
 
@@ -309,7 +309,7 @@ impl State {
     }
 
     pub fn get_cover_modifier(&self, shooter_x: i32, shooter_y: i32, target_x: i32, target_y: i32) -> f32 {
-        let dx = target_x - shooter_y;
+        let dx = target_x - shooter_x;
         let dy = target_y - shooter_y;
         let dirs: Vec<(i32, i32)> = vec![(dx, 0), (0, dy)];
 

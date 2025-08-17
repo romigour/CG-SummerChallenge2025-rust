@@ -21,6 +21,6 @@ impl MCTSNode {
         if self.visits == 0 {
             return f64::INFINITY;
         }
-        self.value / self.visits as f64 + (2.0 * (parent_visits as f64).ln() / self.visits as f64).sqrt()
+        self.value / self.visits as f64 + (1.41 * (parent_visits as f64).ln() / self.visits as f64).sqrt()
     }
 }

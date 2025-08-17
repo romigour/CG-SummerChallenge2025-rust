@@ -1,4 +1,4 @@
-// Généré à 16:37:43 le 17-08-2025
+// Généré à 19:52:34 le 17-08-2025
 mod action {
     #[derive(Clone, Debug, Copy, PartialEq, Eq, Hash)]
     pub enum TypeAction {
@@ -320,7 +320,7 @@ mod state {
             agent.y = action.my;
             let agent_x = agent.x;
             let agent_y = agent.y;
-            let agent_cooldown = agent.cooldown;
+            let agent_cooldown = agent.shoot_cooldown;
             let agent_optimal_range = agent.optimal_range;
             let agent_soaking_power = agent.soaking_power as f32;
     
@@ -356,7 +356,7 @@ mod state {
         }
     
         pub fn get_cover_modifier(&self, shooter_x: i32, shooter_y: i32, target_x: i32, target_y: i32) -> f32 {
-            let dx = target_x - shooter_y;
+            let dx = target_x - shooter_x;
             let dy = target_y - shooter_y;
             let dirs: Vec<(i32, i32)> = vec![(dx, 0), (0, dy)];
     
@@ -710,7 +710,7 @@ mod mcts_node {
             if self.visits == 0 {
                 return f64::INFINITY;
             }
-            self.value / self.visits as f64 + (2.0 * (parent_visits as f64).ln() / self.visits as f64).sqrt()
+            self.value / self.visits as f64 + (1.41 * (parent_visits as f64).ln() / self.visits as f64).sqrt()
         }
     }
 }
