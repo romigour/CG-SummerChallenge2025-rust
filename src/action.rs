@@ -1,10 +1,10 @@
-#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq, Hash)]
 pub enum TypeAction {
     Throw,
     Shoot,
     HunkerDown,
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Action {
     pub id: i32,
     pub mx: i32,

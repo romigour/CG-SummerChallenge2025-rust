@@ -4,15 +4,15 @@ mod agent;
 mod utils;
 mod grid;
 mod scorer;
-mod ia;
-mod node;
 mod io_helper;
+mod mcts_node;
+mod ia;
 mod tests;
 
-use crate::ia::IA;
 use crate::state::State;
 use crate::utils::{Debug, Timer};
 use std::time::Duration;
+use crate::ia::IA;
 use crate::io_helper::InputSource;
 
 fn main() {
@@ -23,6 +23,7 @@ fn main() {
     let ia = IA::new();
     let mut timer = Timer::new(Duration::from_millis(55));
 
+    Debug::debug_simple("A".parse().unwrap());
     // 1. Lecture des inputs initiaux
     State::init_input(&mut state, &mut input_source);
 

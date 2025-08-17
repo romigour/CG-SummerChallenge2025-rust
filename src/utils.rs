@@ -28,8 +28,19 @@ pub struct Debug {
 
 impl Debug {
 
+    pub fn debug_input(value: String) {
+        let debug_input: bool = false;
+
+        if debug_input {
+            eprint!("{}", value);
+        }
+    }
+
     pub fn debug_simple(value: String) {
         eprintln!("{:?}", value)
+    }
+    pub fn display(value: String) {
+        eprintln!("{}", value)
     }
 
     pub fn debug(label: &str, params: &[(&str, String)]) {

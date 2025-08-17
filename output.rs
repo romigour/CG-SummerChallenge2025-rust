@@ -1,12 +1,12 @@
-// Généré à 17:21:44 le 10-08-2025
+// Généré à 16:37:43 le 17-08-2025
 mod action {
-    #[derive(Clone, Debug, Copy, PartialEq, Eq)]
+    #[derive(Clone, Debug, Copy, PartialEq, Eq, Hash)]
     pub enum TypeAction {
         Throw,
         Shoot,
         HunkerDown,
     }
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct Action {
         pub id: i32,
         pub mx: i32,
@@ -89,15 +89,18 @@ mod state {
         pub fn init_input(state: &mut State, input: &mut InputSource) {
             let mut input_line = String::new();
             input.read_line(&mut input_line).unwrap();
+            Debug::debug_input(input_line.clone());
             let my_id = parse_input!(input_line, i32);
             state.my_id = my_id;
             let mut input_line = String::new();
             input.read_line(&mut input_line).unwrap();
+            Debug::debug_input(input_line.clone());
             let agent_data_count = parse_input!(input_line, i32);
             state.agent_data_count = agent_data_count;
             for _ in 0..agent_data_count as usize {
                 let mut input_line = String::new();
                 input.read_line(&mut input_line).unwrap();
+                Debug::debug_input(input_line.clone());
                 let inputs = input_line.split(" ").collect::<Vec<_>>();
                 let agent_id = parse_input!(inputs[0], i32);
                 let player = parse_input!(inputs[1], i32);
@@ -131,6 +134,7 @@ mod state {
             }
             let mut input_line = String::new();
             input.read_line(&mut input_line).unwrap();
+            Debug::debug_input(input_line.clone());
             let inputs = input_line.split(" ").collect::<Vec<_>>();
             let width = parse_input!(inputs[0], i32);
             state.width = width;
@@ -140,6 +144,7 @@ mod state {
             for _ in 0..height as usize {
                 let mut input_line = String::new();
                 input.read_line(&mut input_line).unwrap();
+                Debug::debug_input(input_line.clone());
                 let inputs = input_line.split_whitespace().collect::<Vec<_>>();
                 for j in 0..width as usize {
                     let x = parse_input!(inputs[3*j], usize);
@@ -154,6 +159,7 @@ mod state {
             state.turn += 1;
             let mut input_line = String::new();
             input.read_line(&mut input_line).unwrap();
+            Debug::debug_input(input_line.clone());
             let agent_count = parse_input!(input_line, i32); // Total number of agents still in the game
             for i in 0..10 {
                 state.agents[i].is_dead = true;
@@ -162,6 +168,7 @@ mod state {
             for _ in 0..agent_count as usize {
                 let mut input_line = String::new();
                 input.read_line(&mut input_line).unwrap();
+                Debug::debug_input(input_line.clone());
                 let inputs = input_line.split(" ").collect::<Vec<_>>();
                 let agent_id = parse_input!(inputs[0], i32);
                 let x = parse_input!(inputs[1], i32);
@@ -180,6 +187,7 @@ mod state {
             }
             let mut input_line = String::new();
             input.read_line(&mut input_line).unwrap();
+            Debug::debug_input(input_line.clone());
             let my_agent_count = parse_input!(input_line, i32);
         }
     
@@ -191,6 +199,10 @@ mod state {
             0.0
         }
     
+        pub fn legal_actions_for_idx_agent(&self, idx_agent: usize) -> Vec<Action> {
+            let agent = self.agents[idx_agent];
+            self.legal_actions_for_agent(&agent)
+        }
         pub fn legal_actions_for_agent(&self, agent: &Agent) -> Vec<Action> {
             let mut actions = Vec::new();
     
@@ -206,8 +218,6 @@ mod state {
                     }
     
                     if agent.team == Team::Me {
-                        // TODO quand on voudra gérer les actions des ennemis, il faudra modifier ces boucles:
-                        // for enemy_idx in &self.enemy_idx_arr
     
                         // THROW
                         if agent.splash_bombs > 0 {
@@ -223,6 +233,40 @@ mod state {
                         // SHOOT
                         if agent.cooldown <= 0 {
                             for enemy_idx in &self.enemy_idx_arr {
+                                let enemy = &self.agents[*enemy_idx];
+                                if enemy.is_dead {
+                                    continue;
+                                }
+    
+                                let dist = Math::manhattan(nx, ny, enemy.x, enemy.y);
+                                if dist > agent.optimal_range * 2 {
+                                    continue
+                                }
+    
+                                let mut bonus = 0;
+                                if dist < agent.optimal_range {
+                                    bonus = 10;
+                                }
+    
+                                let score = dist + bonus;
+                                actions.push(Action::shoot(agent.id, nx, ny, enemy.id, score));
+                            }
+                        }
+                    } else {
+                        // THROW
+                        if agent.splash_bombs > 0 {
+                            for enemy_idx in &self.my_idx_arr {
+                                let enemy = self.agents[*enemy_idx];
+                                let dist = Math::manhattan(nx, ny, enemy.x, enemy.y);
+                                if dist <= 4 {
+                                    actions.push(Action::throw(agent.id, nx, ny, enemy.x, enemy.y, 100 - enemy.wetness));
+                                }
+                            }
+                        }
+    
+                        // SHOOT
+                        if agent.cooldown <= 0 {
+                            for enemy_idx in &self.my_idx_arr {
                                 let enemy = &self.agents[*enemy_idx];
                                 if enemy.is_dead {
                                     continue;
@@ -262,9 +306,9 @@ mod state {
             Vec::new()
         }
     
-        pub fn apply_actions_all(&mut self, actions: Vec<Action>) {
+        pub fn apply_actions_all(&mut self, actions: &Vec<Action>) {
             for action in actions {
-                self.apply_actions(action);
+                self.apply_actions(*action);
             }
         }
     
@@ -306,7 +350,7 @@ mod state {
                 let hunker_down_bonus = if enemy_hunker_down { 0.25 } else { 0.0 };
     
                 let enemy_agent = &mut self.agents[action.enemy_id as usize - 1];
-                enemy_agent.wetness += (agent_soaking_power * range_modifier * (1.0 - hunker_down_bonus)) as i32;
+                enemy_agent.wetness += (agent_soaking_power * range_modifier * (cover_modifier - hunker_down_bonus)) as i32;
                 //enemy_agent.wetness += (agent_soaking_power) as i32;
             }
         }
@@ -465,8 +509,19 @@ mod utils {
     
     impl Debug {
     
+        pub fn debug_input(value: String) {
+            let debug_input: bool = false;
+    
+            if debug_input {
+                eprint!("{}", value);
+            }
+        }
+    
         pub fn debug_simple(value: String) {
             eprintln!("{:?}", value)
+        }
+        pub fn display(value: String) {
+            eprintln!("{}", value)
         }
     
         pub fn debug(label: &str, params: &[(&str, String)]) {
@@ -540,7 +595,7 @@ mod scorer {
     pub struct Scorer;
     
     impl Scorer {
-        pub fn score(state: State) -> i32 {
+        pub fn score(state: State) -> f64 {
             let mut my_position_score = 0;
             let mut my_wetness_score = 0;
             let mut enemy_wetness_score = 0;
@@ -598,356 +653,8 @@ mod scorer {
             score += nb_enemy_50wetness * 100;
             score += nb_enemy_100wetness * 1000;
     
-            score
+            score as f64
     
-        }
-    }
-}
-mod ia {
-    use crate::action::{Action, TypeAction};
-    use crate::scorer::Scorer;
-    use crate::state::State;
-    use crate::utils::{Debug, Timer};
-    
-    pub struct IA;
-    
-    impl IA {
-        pub fn new() -> Self {
-            IA
-        }
-        pub fn decide_actions(&self, state: &State, timer: &Timer) -> Vec<Action> {
-            let mut actions = Vec::new();
-    
-            let mut actions_per_agent = Vec::new();
-            let mut nb_actions_per_agent = Vec::new();
-            for idx in &state.my_idx_arr {
-                let agent = &state.agents[*idx];
-                if agent.is_dead {
-                    continue;
-                }
-    
-                let actions_for_agent_filter = filter_actions(state.legal_actions_for_agent(agent));
-                let actions_for_agent_filter_len = actions_for_agent_filter.len();
-    
-                //Debug::debug_vec(format!("Agent n°{}", agent.id).as_str(), &actions_for_agent);
-    
-                actions_per_agent.push(actions_for_agent_filter);
-                nb_actions_per_agent.push(actions_for_agent_filter_len);
-            }
-            //Debug::debug_simple(format!("nb_actions_per_agent {:?}", nb_actions_per_agent));
-            let mut all_combinations = combine_actions(&actions_per_agent);
-            Debug::debug_simple(format!("Size combos {:?}", all_combinations.len()));
-            let mut best_score = i32::MIN;
-    
-            for combo in &mut all_combinations {
-                let mut current_state = state.clone();
-                for action in &mut *combo {
-                    current_state.apply_actions(*action);
-                }
-    
-                // Debug::debug("Current State",
-                //              &[
-                //                  ("actions", format!("{:?}", combo)),
-                //                  ("current_state", format!("{:?}", current_state)),
-                //              ],
-                // );
-                // Debug::debug_simple(format!("Time1: {:?}", timer.time()));
-    
-                let score = Scorer::score(current_state);
-    
-    
-                // Debug::debug_simple(format!("Time1: {:?}", timer.time()));
-    
-                if score > best_score {
-                    best_score = score;
-                    actions = combo.clone();
-                }
-    
-                if timer.is_time_up() {
-                    Debug::debug_simple("IS TIME UP".parse().unwrap());
-                    break;
-                }
-            }
-            Debug::debug_simple(format!("best_score: {:?}", best_score));
-            actions
-        }
-    
-    
-    }
-    
-    fn combine_actions(actions: &[Vec<Action>]) -> Vec<Vec<Action>> {
-        if actions.is_empty() {
-            return vec![vec![]];
-        }
-    
-        let first_agent_actions = &actions[0];
-        let rest_combinations = combine_actions(&actions[1..]);
-    
-        let mut result = Vec::new();
-    
-        for &action in first_agent_actions {
-            for combo in &rest_combinations {
-                let mut new_combo = vec![action];
-                new_combo.extend_from_slice(&combo);
-                // result.push(new_combo);
-                // Vérifie que toutes les coordonnées sont uniques
-                let mut coords = std::collections::HashSet::new();
-                let all_unique = new_combo.iter().all(|a| coords.insert((a.mx, a.my)));
-    
-                if all_unique {
-                    result.push(new_combo);
-                }
-            }
-        }
-    
-        result
-    }
-    
-    fn filter_actions(actions: Vec<Action>) -> Vec<Action> {
-        let mut hunker_down: Vec<Action> = Vec::new();
-        let mut shoot: Vec<Action> = Vec::new();
-        let mut throw: Vec<Action> = Vec::new();
-    
-        // 1. Séparer par type
-        for a in actions {
-            match a.type_action {
-                TypeAction::HunkerDown => hunker_down.push(a),
-                TypeAction::Shoot => shoot.push(a),
-                TypeAction::Throw => throw.push(a),
-            }
-        }
-    
-        // 2. Trier et limiter
-        shoot.sort_by(|a, b| b.score.cmp(&a.score));
-        shoot.truncate(6);
-    
-        throw.sort_by(|a, b| b.score.cmp(&a.score));
-        throw.truncate(2);
-    
-        // 3. Fusionner dans un seul Vec
-        let mut result = Vec::new();
-        result.extend(hunker_down);
-        result.extend(shoot);
-        result.extend(throw);
-    
-        result
-    }
-}
-mod node {
-    use crate::action::Action;
-    
-    pub struct Node {
-        pub parent: Option<usize>,
-        pub children: Vec<usize>,
-        pub visits: usize,
-        pub score: f64, // somme des scores (on divisera par visits pour moyenne)
-        pub action: Option<Action>,
-    }
-    
-    impl Node {
-        pub fn new_root() -> Self {
-            Node {
-                parent: None,
-                children: Vec::new(),
-                visits: 0,
-                score: 0.0,
-                action: None,
-            }
-        }
-    
-        pub fn new_child(parent: usize, action: Action) -> Self {
-            Node {
-                parent: Some(parent),
-                children: Vec::new(),
-                visits: 0,
-                score: 0.0,
-                action: Some(action),
-            }
-        }
-    }
-}
-mod tree {
-    use crate::action::Action;
-    use crate::node::Node;
-    use rand::Rng;
-    
-    pub struct Tree {
-        pub(crate) nodes: Vec<Node>, // indexable, root = 0
-    }
-    
-    impl Tree {
-        pub fn new() -> Self {
-            Tree { nodes: vec![Node::new_root()] }
-        }
-    
-        pub(crate) fn make_children(&mut self, node_idx: usize, moves: Vec<Action>) {
-            // créer un enfant par move
-            for mv in moves {
-                let child_idx = self.nodes.len();
-                let child = Node::new_child(node_idx, mv);
-                self.nodes.push(child);
-                self.nodes[node_idx].children.push(child_idx);
-            }
-        }
-    
-        pub(crate) fn random_child(&self, node_idx: usize, rng: &mut impl Rng) -> usize {
-            let children = &self.nodes[node_idx].children;
-            let pick = rng.gen_range(0..children.len());
-            children[pick]
-        }
-    
-        /// Select child via UCB (retourne index du nœud enfant)
-        pub(crate) fn ucb_select(&self, node_idx: usize, exploration: f64, scale_param: f64) -> usize {
-            let parent_visits = (self.nodes[node_idx].visits.max(1) as f64).max(1.0);
-            let mut best_idx = self.nodes[node_idx].children[0];
-            let mut best_val = std::f64::NEG_INFINITY;
-    
-            for &c in &self.nodes[node_idx].children {
-                let child = &self.nodes[c];
-                let child_vis = (child.visits.max(1) as f64).max(1.0);
-                let avg = child.score / child_vis; // moyenne
-                // formule inspirée du post :
-                let exploitation = avg / scale_param;
-                let exploration_term = exploration * (parent_visits.ln().sqrt() / child_vis.sqrt());
-                let ucb = exploitation + exploration_term;
-    
-                if ucb > best_val {
-                    best_val = ucb;
-                    best_idx = c;
-                }
-            }
-            best_idx
-        }
-    }
-}
-mod smitsimax {
-    use crate::tree::Tree;
-    use rand::rngs::StdRng;
-    use rand::SeedableRng;
-    use crate::action::Action;
-    use crate::scorer::Scorer;
-    use crate::state::State;
-    
-    /// Moteur Smitsimax (générique)
-    pub struct Smitsimax {
-        trees: Vec<Tree>, // 4 arbres (un par pod)
-        exploration: f64,
-        max_depth: usize,
-        sims: usize,
-        random_pulls: usize,  // ex: 10 (tirages aléatoires initiaux)
-        use_scale: bool,
-        rng: StdRng,
-    }
-    
-    impl Smitsimax {
-        fn new(sims: usize, max_depth: usize, exploration: f64, random_pulls: usize, seed: u64) -> Self {
-            Smitsimax {
-                trees: (0..4).map(|_| Tree::new()).collect(),
-                exploration,
-                max_depth,
-                sims,
-                random_pulls,
-                use_scale: false,
-                rng: StdRng::seed_from_u64(seed),
-            }
-        }
-    
-        /// lance la recherche et renvoie les indices d'enfants choisis à la racine (1 move par pod)
-        fn search(&mut self, base_state: &State) -> [Action; 4] {
-            // stat auto : lowest/highest si tu veux normaliser par pod
-            let mut lowest = [f64::INFINITY; 4];
-            let mut highest = [f64::NEG_INFINITY; 4];
-    
-            for sim_id in 0..self.sims {
-                let mut state = base_state.clone();
-                // chemin sélectionné courant (index node) pour chaque pod au travers de la profondeur
-                let mut current = vec![0usize; 4];
-    
-                for depth in 0..self.max_depth {
-                    let mut actions_to_apply = Vec::new();
-                    // pour chaque agent, sélectionner un enfant
-                    for agent in state.agents.iter() {
-                        let idx = (agent.id - 1) as usize;
-                        // si pas d'enfants, créer enfants à partir de moves possibles
-                        if self.trees[idx].nodes[current[idx]].children.is_empty() {
-                            let moves = state.legal_actions_for_agent(agent);
-                            self.trees[idx].make_children(current[idx], moves);
-                        }
-    
-                        // sélectionner : au début aléatoire, ensuite UCB
-                        let chosen_child = if sim_id < self.random_pulls {
-                            // sélection aléatoire globale pendant les random_pulls premières simulations
-                            self.trees[idx].random_child(current[idx], &mut self.rng)
-                        } else {
-                            // compute scale param (optionnel)
-                            let scale = if self.use_scale {
-                                let delta = (highest[idx] - lowest[idx]).max(1e-6);
-                                delta
-                            } else {
-                                1.0
-                            };
-                            self.trees[idx].ucb_select(current[idx], self.exploration, scale)
-                        };
-    
-                        // mettre à jour chemin courant
-                        current[idx] = chosen_child;
-    
-                        // appliquer la move au pod simulé (on simule plus tard après avoir choisi tous les pods pour le tour)
-                        let action = self.trees[idx].nodes[chosen_child].action.clone();
-                        actions_to_apply.push(&action);
-                    } // fin boucle pods
-    
-                    state.apply_actions_all(actions_to_apply);
-                }
-    
-                // évaluer la fin de la simulation
-                let scores = Scorer::score(&state); // [f64; 4]
-    
-                // mise à jour lowest/highest (si needed)
-                for p in 0..4 {
-                    if scores[p] < lowest[p] { lowest[p] = scores[p]; }
-                    if scores[p] > highest[p] { highest[p] = scores[p]; }
-                }
-    
-                // backpropagate : pour chaque pod on remonte depuis current[pod] jusqu'à la racine
-                for pod in 0..4 {
-                    let mut idx = current[pod];
-                    loop {
-                        {
-                            let node = &mut self.trees[pod].nodes[idx];
-                            node.visits += 1;
-                            node.score += scores[pod];
-                        }
-                        // remonter
-                        if let Some(parent_idx) = self.trees[pod].nodes[idx].parent {
-                            idx = parent_idx;
-                        } else {
-                            break;
-                        }
-                    }
-                }
-            } // fin sims
-    
-            // Après toutes les simulations : choisir la meilleure child de la racine pour chaque arbre
-            let mut result = [Action::default(); 4];
-            for pod in 0..4 {
-                let root = 0usize;
-                let tree = &self.trees[pod];
-                // choisir le child avec la moyenne la plus haute (ou visites max)
-                let mut best_child = tree.nodes[root].children[0];
-                let mut best_avg = std::f64::NEG_INFINITY;
-                for &c in &tree.nodes[root].children {
-                    let nd = &tree.nodes[c];
-                    let avg = if nd.visits>0 { nd.score / (nd.visits as f64) } else { nd.score };
-                    if avg > best_avg {
-                        best_avg = avg;
-                        best_child = c;
-                    }
-                }
-                result[pod] = tree.nodes[best_child].action.clone();
-            }
-    
-            result
         }
     }
 }
@@ -979,59 +686,183 @@ mod io_helper {
         }
     }
 }
+mod mcts_node {
+    use std::collections::HashMap;
+    use crate::action::Action;
+    
+    #[derive(Debug)]
+    pub struct MCTSNode {
+        pub visits: usize,
+        pub value: f64,
+        pub children: HashMap<Action, MCTSNode>,
+    }
+    
+    impl MCTSNode {
+        pub fn new() -> Self {
+            Self {
+                visits: 0,
+                value: 0.0,
+                children: HashMap::new(),
+            }
+        }
+    
+        pub fn uct(&self, parent_visits: usize) -> f64 {
+            if self.visits == 0 {
+                return f64::INFINITY;
+            }
+            self.value / self.visits as f64 + (2.0 * (parent_visits as f64).ln() / self.visits as f64).sqrt()
+        }
+    }
+}
+mod ia {
+    use crate::action::Action;
+    use crate::mcts_node::MCTSNode;
+    use crate::scorer::Scorer;
+    use crate::state::State;
+    use crate::utils::{Debug, Timer};
+    use std::collections::HashMap;
+    use rand::seq::SliceRandom; // <-- c'est celui-ci
+    use rand::thread_rng;
+    
+    pub struct IA;
+    
+    impl IA {
+        pub fn new() -> Self {
+            IA
+        }
+        pub fn decide_actions(&self, root_state: &State, timer: &Timer) -> Vec<Action> {
+            let mut simulation_count = 0;
+    
+            let mut agent_trees: HashMap<usize, MCTSNode> = HashMap::new();
+            let agent_ids: Vec<usize> = root_state.agents.iter().filter(|a| !a.is_dead).map(|a| a.id as usize).collect();
+    
+            for agent_id in &agent_ids {
+                agent_trees.insert(*agent_id, MCTSNode::new());
+            }
+    
+            while !timer.is_time_up() {
+                // while simulation_count < 5000 {
+                let mut actions = vec![];
+                let mut next_state = root_state.clone();
+                for agent_id in &agent_ids {
+                    let node = agent_trees.get_mut(agent_id).unwrap();
+                    let legal_actions = next_state.legal_actions_for_idx_agent(*agent_id - 1);
+    
+                    legal_actions.iter().for_each(|action| {
+                        // Si l'action n'existe pas dans les enfants, on l'ajoute
+                        if !node.children.contains_key(action) {
+                            node.children.insert(*action, MCTSNode::new());
+                        }
+                    });
+    
+                    // Sélection via UCT
+                    let action = legal_actions.iter().max_by(|a, b| {
+                        let a_node = node.children.get(*a).unwrap();
+                        let b_node = node.children.get(*b).unwrap();
+                        a_node
+                            .uct(node.visits)
+                            .partial_cmp(&b_node.uct(node.visits))
+                            .unwrap()
+                    }).unwrap().clone();
+    
+                    actions.push(action);
+                }
+    
+                // Simulation
+                next_state.apply_actions_all(&actions);
+                simulation_count += 1;
+    
+                let reward = simulate_random_playout(&mut next_state, 1);
+    
+                // Rétropropagation
+                for action in &actions {
+                    let node = agent_trees.get_mut(&(action.id as usize)).unwrap();
+                    let mut child: &mut MCTSNode = node.children.get_mut(action).unwrap();
+                    child.visits += 1;
+                    child.value += reward;
+                    node.visits += 1;
+                }
+            }
+    
+            Debug::debug_simple(format!("Sim: {:?}", &simulation_count));
+    
+            // Choix final d’action pour chaque agent
+            root_state.my_idx_arr.iter()
+                .map(|agent_idx| agent_trees.get(&(agent_idx + 1)))
+                .filter(|node| node.is_some())
+                .map(|node| node.unwrap())
+                .map(|node| {
+                    node.children.iter().max_by(|(_, a), (_, b)| {
+                        a.visits.cmp(&b.visits)
+                    }).map(|(a, _)| a.clone()).unwrap()
+                }).collect()
+        }
+    }
+    
+    fn simulate_random_playout(current_state: &mut State, max_depth: usize) -> f64 {
+        let mut rng = thread_rng();
+    
+        let mut depth = 0;
+        while max_depth > depth {
+            if current_state.is_terminal() {
+                break;
+            }
+    
+            let actions: Vec<Action> = current_state.agents.iter().filter(|agent| !agent.is_dead).map(|agent| {
+                let legal = current_state.legal_actions_for_idx_agent((agent.id - 1) as usize);
+                legal.choose(&mut rng).unwrap().clone()
+            }).collect();
+    
+            current_state.apply_actions_all(&actions);
+            depth += 1;
+        }
+    
+        // Scorer::score(current_state)
+        Scorer::score(current_state.clone())
+    }
+}
 mod tests {
     #[cfg(test)]
     mod tests {
         use std::fs::File;
         use std::io::{BufReader};
         use std::path::Path;
+        use std::time::Duration;
+        use crate::ia::IA;
         use crate::io_helper::InputSource;
         use crate::state::State;
+        use crate::utils::Timer;
     
         #[test]
         fn test_init_and_update_input() {
             // 🔹 Création du State
             let mut state = State::new();
+            let mut ia = IA::new();
+            let mut timer = Timer::new(Duration::from_millis(9999999999));
             assert_eq!(state.my_id, 0);
             // 📂 Chemins vers les fichiers (relatif au fichier tests.rs)
-            // let init_path = Path::new("./files/input.txt");
-            // let update_path = Path::new("./files/update.txt");
+            let init_path = Path::new("./files/input.txt");
+            let update_path = Path::new("./files/update.txt");
             //
             // // 📂 Ouverture des fichiers
-            // let init_file = File::open(init_path).expect("Impossible d'ouvrir init.txt");
-            // let update_file = File::open(&update_path).expect("Impossible d'ouvrir update.txt");
+            let init_file = File::open(init_path).expect("Impossible d'ouvrir init.txt");
+            let update_file = File::open(&update_path).expect("Impossible d'ouvrir update.txt");
             //
-            // let mut init_input_source = InputSource::File(BufReader::new(init_file));
-            // let mut update_input_source = InputSource::File(BufReader::new(update_file));
+            let mut init_input_source = InputSource::File(BufReader::new(init_file));
+            let mut update_input_source = InputSource::File(BufReader::new(update_file));
+            State::init_input(&mut state, &mut init_input_source);
+            State::update_input(&mut state, &mut update_input_source);
     
-            // // 🔹 Lecture init
-            // State::init_input(&mut state, &mut init_input_source);
-            //
-            // // ✅ Assert sur l'init
-            // assert_eq!(state.my_id, 0);
-            // assert_eq!(state.agent_data_count, 2);
-            // assert_eq!(state.width, 3);
-            // assert_eq!(state.height, 3);
-            // assert_eq!(state.my_idx_arr.len(), 1);
-            // assert_eq!(state.enemy_idx_arr.len(), 1);
-            //
-            // // 🔹 Lecture update
-            // State::update_input(&mut state, &mut update_input_source);
-            //
-            // // ✅ Assert sur le tour
-            // assert_eq!(state.turn, 1);
-            // assert_eq!(state.agents[0].x, 5);
-            // assert_eq!(state.agents[0].y, 5);
-            // assert_eq!(state.agents[1].x, 6);
-            // assert_eq!(state.agents[1].y, 6);
-            // assert_eq!(state.agents[1].wetness, 10);
+            timer.start();
+            ia.decide_actions(&state, &timer);
+            println!("state.my_id");
         }
     }
 }
-use crate::ia::IA;
 use crate::state::State;
 use crate::utils::{Debug, Timer};
 use std::time::Duration;
+use crate::ia::IA;
 use crate::io_helper::InputSource;
 
 fn main() {
@@ -1040,8 +871,9 @@ fn main() {
     let mut state = State::new();
 
     let ia = IA::new();
-    let mut timer = Timer::new(Duration::from_millis(45));
+    let mut timer = Timer::new(Duration::from_millis(55));
 
+    Debug::debug_simple("A".parse().unwrap());
     // 1. Lecture des inputs initiaux
     State::init_input(&mut state, &mut input_source);
 

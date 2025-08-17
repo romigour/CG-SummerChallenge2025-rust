@@ -42,15 +42,18 @@ impl State {
     pub fn init_input(state: &mut State, input: &mut InputSource) {
         let mut input_line = String::new();
         input.read_line(&mut input_line).unwrap();
+        Debug::debug_input(input_line.clone());
         let my_id = parse_input!(input_line, i32);
         state.my_id = my_id;
         let mut input_line = String::new();
         input.read_line(&mut input_line).unwrap();
+        Debug::debug_input(input_line.clone());
         let agent_data_count = parse_input!(input_line, i32);
         state.agent_data_count = agent_data_count;
         for _ in 0..agent_data_count as usize {
             let mut input_line = String::new();
             input.read_line(&mut input_line).unwrap();
+            Debug::debug_input(input_line.clone());
             let inputs = input_line.split(" ").collect::<Vec<_>>();
             let agent_id = parse_input!(inputs[0], i32);
             let player = parse_input!(inputs[1], i32);
@@ -84,6 +87,7 @@ impl State {
         }
         let mut input_line = String::new();
         input.read_line(&mut input_line).unwrap();
+        Debug::debug_input(input_line.clone());
         let inputs = input_line.split(" ").collect::<Vec<_>>();
         let width = parse_input!(inputs[0], i32);
         state.width = width;
@@ -93,6 +97,7 @@ impl State {
         for _ in 0..height as usize {
             let mut input_line = String::new();
             input.read_line(&mut input_line).unwrap();
+            Debug::debug_input(input_line.clone());
             let inputs = input_line.split_whitespace().collect::<Vec<_>>();
             for j in 0..width as usize {
                 let x = parse_input!(inputs[3*j], usize);
@@ -107,6 +112,7 @@ impl State {
         state.turn += 1;
         let mut input_line = String::new();
         input.read_line(&mut input_line).unwrap();
+        Debug::debug_input(input_line.clone());
         let agent_count = parse_input!(input_line, i32); // Total number of agents still in the game
         for i in 0..10 {
             state.agents[i].is_dead = true;
@@ -115,6 +121,7 @@ impl State {
         for _ in 0..agent_count as usize {
             let mut input_line = String::new();
             input.read_line(&mut input_line).unwrap();
+            Debug::debug_input(input_line.clone());
             let inputs = input_line.split(" ").collect::<Vec<_>>();
             let agent_id = parse_input!(inputs[0], i32);
             let x = parse_input!(inputs[1], i32);
@@ -133,6 +140,7 @@ impl State {
         }
         let mut input_line = String::new();
         input.read_line(&mut input_line).unwrap();
+        Debug::debug_input(input_line.clone());
         let my_agent_count = parse_input!(input_line, i32);
     }
 
@@ -144,6 +152,10 @@ impl State {
         0.0
     }
 
+    pub fn legal_actions_for_idx_agent(&self, idx_agent: usize) -> Vec<Action> {
+        let agent = self.agents[idx_agent];
+        self.legal_actions_for_agent(&agent)
+    }
     pub fn legal_actions_for_agent(&self, agent: &Agent) -> Vec<Action> {
         let mut actions = Vec::new();
 
@@ -247,9 +259,9 @@ impl State {
         Vec::new()
     }
 
-    pub fn apply_actions_all(&mut self, actions: Vec<Action>) {
+    pub fn apply_actions_all(&mut self, actions: &Vec<Action>) {
         for action in actions {
-            self.apply_actions(action);
+            self.apply_actions(*action);
         }
     }
 
@@ -291,7 +303,7 @@ impl State {
             let hunker_down_bonus = if enemy_hunker_down { 0.25 } else { 0.0 };
 
             let enemy_agent = &mut self.agents[action.enemy_id as usize - 1];
-            enemy_agent.wetness += (agent_soaking_power * range_modifier * (1.0 - hunker_down_bonus)) as i32;
+            enemy_agent.wetness += (agent_soaking_power * range_modifier * (cover_modifier - hunker_down_bonus)) as i32;
             //enemy_agent.wetness += (agent_soaking_power) as i32;
         }
     }

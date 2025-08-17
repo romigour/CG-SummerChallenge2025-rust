@@ -5,7 +5,7 @@ use crate::utils::Debug;
 pub struct Scorer;
 
 impl Scorer {
-    pub fn score(state: State) -> i32 {
+    pub fn score(state: State) -> f64 {
         let mut my_position_score = 0;
         let mut my_wetness_score = 0;
         let mut enemy_wetness_score = 0;
@@ -63,7 +63,7 @@ impl Scorer {
         score += nb_enemy_50wetness * 100;
         score += nb_enemy_100wetness * 1000;
 
-        score
+        score as f64
 
     }
 }
