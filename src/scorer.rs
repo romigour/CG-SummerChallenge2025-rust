@@ -5,7 +5,7 @@ use crate::utils::Debug;
 pub struct Scorer;
 
 impl Scorer {
-    pub fn score(state: State) -> f64 {
+    pub fn score(state: State, team: Team) -> f64 {
         let mut my_position_score = 0;
         let mut my_wetness_score = 0;
         let mut enemy_wetness_score = 0;
@@ -51,17 +51,29 @@ impl Scorer {
         }
 
         let mut score = 0;
-        score += zones * 10;
+        //score += zones * 10;
 
        // score += my_position_score /10;
 
-        score -= my_wetness_score * 1000;
-        score -= nb_my_50wetness * 10000;
-        score -= nb_my_100wetness * 100000;
+        // score -= my_wetness_score * 1000;
+        // score -= nb_my_50wetness * 10000;
+        // score -= nb_my_100wetness * 100000;
 
-        score += (enemy_wetness_score * 10) / 100;
-        score += nb_enemy_50wetness * 100;
-        score += nb_enemy_100wetness * 1000;
+        // score += (enemy_wetness_score * 10) / 100;
+        // score += nb_enemy_50wetness * 100;
+        // score += nb_enemy_100wetness * 1000;
+
+        if Team::Me == team {
+            score += zones / state.width * state.height;
+            score += my_wetness_score / (my_wetness_score + enemy_wetness_score + 1);
+            score += nb_my_50wetness / (nb_my_50wetness + nb_enemy_50wetness + 1);
+            score += nb_my_100wetness / (nb_my_100wetness + nb_enemy_100wetness + 1);
+        } else {
+            score += -zones / state.width * state.height;
+            score += enemy_wetness_score / (enemy_wetness_score + my_wetness_score + 1);
+            score += nb_enemy_50wetness / (nb_enemy_50wetness + nb_enemy_50wetness + 1);
+            score += nb_enemy_100wetness / (nb_enemy_100wetness + nb_enemy_100wetness + 1);
+        }
 
         score as f64
 

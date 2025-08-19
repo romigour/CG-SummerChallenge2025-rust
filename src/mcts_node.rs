@@ -5,15 +5,17 @@ use crate::action::Action;
 pub struct MCTSNode {
     pub visits: usize,
     pub value: f64,
-    pub children: HashMap<Action, MCTSNode>,
+    pub children: Vec<MCTSNode>,
+    pub action: Option<Action>,
 }
 
 impl MCTSNode {
-    pub fn new() -> Self {
+    pub fn new(action: Option<Action>) -> Self {
         Self {
             visits: 0,
             value: 0.0,
-            children: HashMap::new(),
+            children: Vec::new(),
+            action
         }
     }
 

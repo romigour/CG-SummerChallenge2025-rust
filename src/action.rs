@@ -14,11 +14,12 @@ pub struct Action {
     pub y: i32,
     pub enemy_id: i32,
     pub score: i32,
+    pub index: usize,
 }
 
 impl Action {
     pub fn new(id: i32, mx: i32, my: i32, type_action: TypeAction, x: i32, y: i32, enemy_id: i32, score: i32) -> Self {
-        Action { id, mx, my, type_action, x, y, enemy_id, score }
+        Action { id, mx, my, type_action, x, y, enemy_id, score, index: 0 }
     }
 
     pub fn shoot(id: i32, mx: i32, my: i32, enemy_id: i32, score: i32) -> Self {
